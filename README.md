@@ -102,6 +102,6 @@ git clone https://github.com/<your-username>/wuwu-intelligence.git \
 
 MIT — 详见 [LICENSE](LICENSE)。
 
-## 🙏 致谢 Credits
+## 🌱 起源 Origin
 
-由 RGB_ding（ESP32-S3 + WS2812B-64）项目沉淀而来，首个示例设备为 8×8 全彩 LED 矩阵。
+沉淀自 RGB_ding（ESP32-S3 + WS2812B-64）项目，首个验证设备为 8×8 全彩 LED 矩阵。
