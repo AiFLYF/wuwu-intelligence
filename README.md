@@ -21,7 +21,7 @@ A Claude Code Skill that lets you control registered hardware in plain language,
 ```
 wuwu-intelligence/
 ├── SKILL.md              # 技能主文件（触发条件 + 四条工作流 + 小白守则）
-├── devices.json          # 设备注册表（示例，首次使用为空或按模板填写）
+├── devices.json.example  # 设备注册表模板（复制为 devices.json 后按你的设备填写）
 ├── references/
 │   ├── new-device-playbook.md   # 新设备接入手册（六阶段）
 │   ├── protocol-template.md     # 通信协议骨架
@@ -32,17 +32,39 @@ wuwu-intelligence/
 
 ## 🚀 安装 Installation
 
-### 作为 Claude Code Skill 安装
+> 仓库地址：https://github.com/AiFLYF/wuwu-intelligence
+
+### 手动安装（两条命令）
 
 ```bash
-# 克隆到本地 skills 目录（Claude Code 会自动发现）
-git clone https://github.com/<your-username>/wuwu-intelligence.git \
+# 1. 克隆到用户级 skills 目录（Claude Code 会自动发现）
+#    Windows 下 ~ 即 C:\Users\<你的用户名>
+git clone --depth 1 https://github.com/AiFLYF/wuwu-intelligence.git \
   ~/.claude/skills/wuwu-intelligence
 
-# 或：如果你已用本仓库作为 skills 源，直接软链接/复制即可
+# 2. 复制设备注册表模板（本地文件，已被 .gitignore 排除）
+cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
+   ~/.claude/skills/wuwu-intelligence/devices.json
 ```
 
-> 技能安装后，在任意 Claude Code 会话中提到“灯板 / 舵机 / 传感器 / 屏幕 / 电机 / 烧录”等关键词即可触发。
+- 也可以克隆到某个项目的 `.claude/skills/` 下，仅在该项目内生效
+- 已安装过？进目录 `git pull` 更新即可
+- **生效方式**：技能在会话启动时加载——安装后**新开一个 Claude Code 会话**才会生效
+
+### 验证安装
+
+新会话里问一句：「你现在加载了哪些技能？有没有万物智能？」
+或直接说「灯板设成红色」——如果设备已登记，技能会读 `devices.json` 开始工作；如果还没登记设备，它会列出模板并引导你填写。
+
+### 🤖 让 Agent 自动安装
+
+把下面这句话发给任意 Claude Code 会话，agent 会照 README 完成全部步骤：
+
+```
+请安装 https://github.com/AiFLYF/wuwu-intelligence 这个 Claude Code 技能：克隆到 ~/.claude/skills/wuwu-intelligence，把 devices.json.example 复制为 devices.json，然后告诉我怎么验证。
+```
+
+> agent 执行时的自检清单：① 确认 `~/.claude/skills/wuwu-intelligence/SKILL.md` 存在且 frontmatter 含 `name: wuwu-intelligence`；② `devices.json` 不存在时从 `devices.json.example` 复制，**已存在则不要覆盖**（里面有用户自己的设备数据）；③ 完成后提醒用户：新开会话后技能才生效。
 
 ## 🗣️ 使用示例 Usage
 
@@ -62,7 +84,9 @@ git clone https://github.com/<your-username>/wuwu-intelligence.git \
 
 ## 📝 注册自己的设备
 
-编辑 `devices.json`，按模板新增一条：
+复制 `devices.json.example` 为 `devices.json`（本地文件，不入库），按模板新增一条：
+
+> 模板里的示例设备 RGB_ding（ESP32-S3 + WS2812B-64 灯板）**不随本仓库发布**，示例条目仅演示格式，请替换为你自己的项目路径和命令。
 
 ```json
 {

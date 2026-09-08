@@ -1,11 +1,11 @@
 {
-  "_comment": "复制为 devices.json 后按你的设备填写。aliases 用于口语匹配，project_path 可用相对或绝对路径。",
+  "_comment": "复制为 devices.json 后按你的设备填写。aliases 用于口语匹配，project_path 可用相对或绝对路径。示例条目仅演示格式，请替换为你自己的设备信息。",
   "devices": [
     {
       "name": "led_matrix_8x8",
       "aliases": ["灯板", "灯珠", "RGB灯", "WS2812", "矩阵"],
       "description": "ESP32-S3 + WS2812B-64 8x8 全彩 LED 矩阵示例",
-      "project_path": "./examples/RGB_ding",
+      "project_path": "/path/to/your/RGB_ding",
       "control": {
         "cli": "pc/led_cli.py",
         "lib": "pc/esp32_led.py",

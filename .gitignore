@@ -1,5 +1,6 @@
-# 本地覆盖与隐私
+# 本地覆盖与隐私（devices.json = 本地设备注册表，可能含局域网IP，勿提交）
 device.json
+devices.json
 *.local.json
 .env
 

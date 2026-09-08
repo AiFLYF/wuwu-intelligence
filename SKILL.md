@@ -11,10 +11,11 @@ description: 万物智能 - 对接并控制任意硬件设备的通用工作流�
 
 - 本技能是**方法论 + 设备注册表**,不绑定任何特定设备。灯板只是第一个注册的设备。
 - `devices.json`(本目录下)= 已注册设备档案。控制已有设备前先读它。
-- 三类用户意图 → 三个工作流:
+- 四类用户意图 → 四条工作流:
   1. **控制/演示已有设备** → 流程 A
   2. **接入全新设备** → 读 references/new-device-playbook.md,流程 B
   3. **给已有设备扩展新功能** → 读 references/extension-guide.md,流程 C
+  4. **编译/烧录固件** → 流程 D
 - 排障(连不上/乱闪/编译失败)→ references/troubleshooting.md
 - 新设备通信协议设计 → references/protocol-template.md
 
@@ -31,6 +32,7 @@ description: 万物智能 - 对接并控制任意硬件设备的通用工作流�
 ## 流程 A:控制已有设备
 
 1. 读 `devices.json`,按用户口语匹配 aliases 找到设备;找不到就列出可用设备问用户
+   - 文件不存在 → 先从同目录 `devices.json.example` 复制一份为 `devices.json`,再照模板登记设备;没有任何已登记设备时,列出设备清单并询问用户
 2. 取 IP:读设备档案里 ip_lookup 指向的文件;没有 IP 就问用户(提示:看串口监视器打印的 IP)
 3. 有现成命令/脚本 → 直接执行;没有 → 用 lib 写一次性脚本
 4. 验证:控制类执行后可发 status 类查询确认;失败走排障决策树
