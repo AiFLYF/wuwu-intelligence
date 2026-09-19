@@ -1,25 +1,54 @@
 {
-  "_comment": "复制为 devices.json 后按你的设备填写。aliases 用于口语匹配，project_path 可用相对或绝对路径。示例条目仅演示格式，请替换为你自己的设备信息。",
-  "devices": [
-    {
-      "name": "led_matrix_8x8",
-      "aliases": ["灯板", "灯珠", "RGB灯", "WS2812", "矩阵"],
-      "description": "ESP32-S3 + WS2812B-64 8x8 全彩 LED 矩阵示例",
-      "project_path": "/path/to/your/RGB_ding",
-      "control": {
-        "cli": "pc/led_cli.py",
-        "lib": "pc/esp32_led.py",
-        "transport": "tcp:8888",
-        "ip_lookup": "pc/device.json"
+  "_comment": "复制为 devices.json 后使用。devices 数组里才是已登记设备，初始为空；_template 只是格式示范，不是设备，技能不会把它当设备执行。commands 相当于把 --help 写进来：desc=这条命令做什么（一句话，技能靠它理解用户口语），run=真实命令模板，args=每个占位符的含义/范围/默认值（无参数可省略）。global_options 是所有 CLI 命令通用的可选参数。control.transport 写法：tcp:8888 / serial:COM7@115200 / ble:设备名。hardware.toolchain 写法：arduino / esp-idf / platformio / micropython / circuitpython / rpi-python。写全之后技能只读这个文件就能控制设备，不需要跑 --help 或读代码，所以每条命令和参数都必须真实存在。",
+  "devices": [],
+  "_template": {
+    "name": "led_matrix_8x8",
+    "aliases": ["灯板", "灯珠", "RGB灯", "WS2812", "矩阵"],
+    "description": "ESP32-S3 + WS2812B-64 8x8 全彩 LED 矩阵",
+    "project_path": "/path/to/your/RGB_ding",
+    "control": {
+      "cli": "pc/led_cli.py",
+      "lib": "pc/esp32_led.py",
+      "transport": "tcp:8888",
+      "ip_lookup": "pc/device.json"
+    },
+    "global_options": {
+      "--ip <地址>": "指定设备 IP，成功一次后自动记住，之后可省略",
+      "--forget": "清除记住的 IP",
+      "--timeout <秒>": "连接超时，默认 3"
+    },
+    "commands": {
+      "color": {
+        "desc": "全部灯珠设为同一颜色；关灯就是 0 0 0",
+        "run": "python pc/led_cli.py color {r} {g} {b}",
+        "args": {"r": "红 0-255", "g": "绿 0-255", "b": "蓝 0-255"}
       },
-      "hardware": {
-        "mcu": "ESP32-S3",
-        "signal_pin": "GPIO38"
+      "rainbow": {
+        "desc": "彩虹色循环流动",
+        "run": "python pc/led_cli.py rainbow --speed {speed}",
+        "args": {"speed": "1-100，默认 20，越大越快"}
       },
-      "quick_examples": {
-        "纯色": "python pc/led_cli.py color 255 0 0",
-        "彩虹": "python pc/led_cli.py rainbow --speed 20"
+      "fade": {
+        "desc": "平滑渐变到目标亮度（调暗/调亮/呼吸灯用这个）",
+        "run": "python pc/led_cli.py fade {n}",
+        "args": {"n": "0-255；调暗≈当前一半，调亮≈200"}
+      },
+      "demo": {
+        "desc": "依次展示所有效果，约 30 秒",
+        "run": "python pc/demo.py"
+      },
+      "status": {
+        "desc": "查询当前模式、亮度、IP、信号强度",
+        "run": "python pc/led_cli.py status"
       }
-    }
-  ]
+    },
+    "hardware": {
+      "mcu": "ESP32-S3",
+      "toolchain": "arduino",
+      "signal_pin": "GPIO38",
+      "flash_port": "COM7",
+      "power": "独立5V 4A，与主控共地"
+    },
+    "manual": "docs/manual.html"
+  }
 }

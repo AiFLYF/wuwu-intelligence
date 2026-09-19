@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{DEVICE_NAME}} · 使用说明</title>
+<!--
+  万物智能 · 说明书模板
+  ────────────────────────────────────────────────────────────
+  用法:把所有双花括号占位符替换成真实内容;按设备风格改 :root 里的主题变量;
+  表格行 / 命令小节 / FAQ 条目按实际数量增删;不需要的节整段删掉。
+  生成后保存为 <project_path>/docs/manual.html。
+
+  主题预设(改 --accent / --accent-2 / --hero-a / --hero-b 四个值):
+    灯板 / 灯带   #ff4d6d  #4dd0ff  #1a1030  #0b1a3a   深色底 + 霓虹
+    传感器        #0ea5e9  #22c55e  #e0f2fe  #f0fdf4   清爽浅色 + 数据感
+    舵机 / 机械   #f97316  #94a3b8  #1c1917  #292524   工业橙灰
+    礼物 / 温馨   #e07a5f  #f2cc8f  #fff1e6  #fde7d6   温暖柔和
+  hero 3D 背景:由 three.js 通过 CDN 加载,离线或加载失败时自动降级为 CSS 渐变,内容不受影响。
+-->
+<style>
+:root{
+  --accent:{{ACCENT}};
+  --accent-2:{{ACCENT_2}};
+  --hero-a:{{HERO_A}};
+  --hero-b:{{HERO_B}};
+  --fg:#111827; --fg-2:#4b5563; --fg-3:#9ca3af;
+  --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; --code-bg:#f3f4f6;
+  --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px -12px rgba(0,0,0,.12);
+  --radius:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --fg:#f3f4f6; --fg-2:#a1a1aa; --fg-3:#71717a;
+         --bg:#0a0a0c; --card:#141417; --line:#26262b; --code-bg:#1b1b20;
+         --ok:#4ade80; --warn:#fbbf24; --bad:#f87171;
+         --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -12px rgba(0,0,0,.6); }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;color:var(--fg);background:var(--bg);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+p{margin:8px 0}
+code,pre,.mono{font-family:"JetBrains Mono","SF Mono",ui-monospace,Consolas,"Courier New",monospace}
+code{font-size:.9em;background:var(--code-bg);padding:2px 7px;border-radius:6px}
+
+/* ── Hero ───────────────────────────────────────────── */
+.hero{position:relative;overflow:hidden;color:#fff;background:linear-gradient(135deg,var(--hero-a),var(--hero-b));min-height:520px;display:flex;align-items:flex-end}
+.hero::before{content:"";position:absolute;inset:-40%;background:
+  radial-gradient(40% 40% at 30% 30%,color-mix(in srgb,var(--accent) 55%,transparent),transparent 70%),
+  radial-gradient(35% 35% at 75% 65%,color-mix(in srgb,var(--accent-2) 50%,transparent),transparent 70%);
+  filter:blur(40px);animation:drift 18s ease-in-out infinite alternate;pointer-events:none}
+@keyframes drift{from{transform:translate(-3%,-2%) rotate(0)}to{transform:translate(3%,3%) rotate(6deg)}}
+#hero-3d{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity 1.2s ease}
+#hero-3d.on{opacity:1}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.45),transparent 60%);pointer-events:none}
+.hero-inner{position:relative;z-index:2;width:100%;max-width:880px;margin:0 auto;padding:72px 24px 40px}
+.eyebrow{font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;opacity:.75;margin-bottom:10px}
+.hero h1{font-size:clamp(2.2rem,6vw,3.6rem);line-height:1.1;margin:0 0 14px;letter-spacing:-.02em;font-weight:800;text-shadow:0 2px 24px rgba(0,0,0,.35)}
+.hero .sub{font-size:1.15rem;max-width:620px;opacity:.9;margin:0 0 26px;line-height:1.6}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{backdrop-filter:blur(10px);background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:5px 13px;font-size:.85rem;white-space:nowrap}
+.chip b{font-weight:600;margin-left:4px}
+.light-hero .hero{color:var(--fg)}.light-hero .hero::after{display:none}
+.light-hero .chip{background:rgba(255,255,255,.55);border-color:rgba(0,0,0,.08)}
+.light-hero .hero h1{text-shadow:none}
+
+/* ── Nav ────────────────────────────────────────────── */
+nav.toc{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+nav.toc ul{list-style:none;margin:0 auto;padding:0 16px;max-width:880px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav.toc ul::-webkit-scrollbar{display:none}
+nav.toc a{display:block;padding:12px 12px;font-size:.9rem;color:var(--fg-2);white-space:nowrap;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--fg);text-decoration:none;border-color:var(--accent)}
+
+/* ── Layout ─────────────────────────────────────────── */
+main{max-width:880px;margin:0 auto;padding:16px 24px 96px}
+section.block{margin-top:56px;scroll-margin-top:64px}
+h2{font-size:1.55rem;margin:0 0 6px;letter-spacing:-.01em;font-weight:700}
+h2 .n{display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;border-radius:10px;font-size:.9rem;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-2));margin-right:12px;vertical-align:4px}
+.lead{color:var(--fg-2);margin:0 0 18px}
+h3{font-size:1.02rem;margin:26px 0 8px;font-weight:650}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px}
+.wiring{margin-top:16px;padding:18px 20px;background:var(--code-bg);border-radius:14px;overflow-x:auto;border:1px solid var(--line)}
+.wiring pre{margin:0;font-size:13px;line-height:1.55;white-space:pre}
+.wiring .cap{font-size:.8rem;color:var(--fg-3);margin-bottom:8px;font-family:inherit}
+
+/* ── Steps ──────────────────────────────────────────── */
+.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.steps li{position:relative;padding:16px 18px 16px 62px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:14px;width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;display:grid;place-items:center}
+
+/* ── Tables ─────────────────────────────────────────── */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;min-width:520px}
+th,td{padding:13px 18px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);background:color-mix(in srgb,var(--card) 60%,var(--bg))}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.say{display:inline-block;font-weight:600;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);margin:2px 0}
+.say::before{content:"“"}.say::after{content:"”"}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.ok{background:var(--ok)}
+
+/* ── Command block ──────────────────────────────────── */
+.cmd{position:relative;background:#0f1115;color:#e6e8ee;border-radius:12px;padding:14px 100px 14px 18px;margin:10px 0 6px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-all;border:1px solid #23262f}
+.cmd::before{content:"$ ";color:var(--accent-2);opacity:.9}
+.cmd button{position:absolute;right:10px;top:10px;font:12px/1 system-ui,sans-serif;padding:6px 11px;border-radius:7px;border:1px solid #2f3341;background:#1a1d25;color:#c9cdd6;cursor:pointer;transition:.15s}
+.cmd button:hover{border-color:var(--accent);color:#fff}
+.args{color:var(--fg-2);font-size:.95rem;margin:0 0 4px}
+
+/* ── FAQ ────────────────────────────────────────────── */
+.faq{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:10px 0;box-shadow:var(--shadow);overflow:hidden}
+.faq summary{cursor:pointer;padding:15px 20px;font-weight:600;list-style:none;display:flex;align-items:center;gap:12px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(-45deg);transition:.2s;flex:none}
+.faq[open] summary::before{transform:rotate(45deg)}
+.faq .body{padding:0 20px 16px 40px;color:var(--fg-2)}
+.faq .body b{color:var(--fg);font-weight:600}
+
+/* ── Callout ────────────────────────────────────────── */
+.safe{position:relative;background:color-mix(in srgb,var(--warn) 8%,var(--card));border:1px solid color-mix(in srgb,var(--warn) 35%,var(--line));border-radius:14px;padding:18px 20px 16px 22px}
+.safe::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:4px;background:var(--warn)}
+.safe .t{font-weight:700;margin-bottom:6px}
+.safe ul{margin:0;padding-left:20px;color:var(--fg-2)}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:var(--fg-3);font-size:.88rem;line-height:1.9}
+
+@media (max-width:560px){
+  .hero{min-height:440px}.hero-inner{padding:56px 18px 30px}
+  main{padding:12px 16px 72px}.card{padding:18px}
+  th,td{padding:11px 14px}.cmd{padding-right:16px;padding-bottom:44px}.cmd button{top:auto;bottom:10px}
+}
+@media (prefers-reduced-motion:reduce){.hero::before{animation:none}}
+</style>
+</head>
+<body class="{{HERO_MODE}}"><!-- HERO_MODE:深色主题留空;浅色预设(传感器 / 礼物)填 light-hero -->
+
+<!-- 1. 顶部 -->
+<header class="hero">
+  <canvas id="hero-3d" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <div class="eyebrow">万物智能 · 设备说明</div>
+    <h1>{{DEVICE_NAME}}</h1>
+    <p class="sub">{{ONE_LINE_INTRO}}</p>
+    <div class="chips">
+      <span class="chip">主控<b>{{MCU}}</b></span>
+      <span class="chip">工具链<b>{{TOOLCHAIN}}</b></span>
+      <span class="chip">信号脚<b>{{SIGNAL_PIN}}</b></span>
+      <span class="chip">供电<b>{{POWER}}</b></span>
+      <span class="chip">通信<b>{{TRANSPORT}}</b></span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><ul>
+  <li><a href="#start">怎么开始</a></li>
+  <li><a href="#say">你可以这样说</a></li>
+  <li><a href="#cli">命令行</a></li>
+  <li><a href="#faq">常见问题</a></li>
+  <li><a href="#safe">安全</a></li>
+</ul></nav>
+
+<main>
+
+<!-- 接线 -->
+<section class="block" id="wiring" style="margin-top:32px">
+  <div class="card">
+    <h2><span class="n">⌁</span>接线</h2>
+    <p class="lead">按图接好再上电。所有电源共地。</p>
+    <div class="wiring"><div class="cap">接线示意</div><pre>{{ASCII_WIRING}}</pre></div>
+  </div>
+</section>
+
+<!-- 2. 怎么开始 -->
+<section class="block" id="start">
+  <h2><span class="n">1</span>怎么开始</h2>
+  <p class="lead">三步以内,之后都用说的。</p>
+  <ol class="steps">
+    <li>{{START_STEP_1}}</li>
+    <li>{{START_STEP_2}}</li>
+    <li>{{START_STEP_3}}</li>
+  </ol>
+</section>
+
+<!-- 3. 能说的话 -->
+<section class="block" id="say">
+  <h2><span class="n">2</span>你可以这样说</h2>
+  <p class="lead">在 Claude Code 里直接用人话,不用记命令。</p>
+  <div class="tbl"><table>
+    <thead><tr><th style="width:44%">你说</th><th>它会做</th></tr></thead>
+    <tbody>
+      <tr><td><span class="say">{{SAY_1}}</span></td><td>{{DESC_1}}</td></tr>
+      <tr><td><span class="say">{{SAY_2}}</span></td><td>{{DESC_2}}</td></tr>
+      <tr><td><span class="say">{{SAY_3}}</span></td><td>{{DESC_3}}</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 4. 命令行 -->
+<section class="block" id="cli">
+  <h2><span class="n">3</span>命令行用法</h2>
+  <p class="lead">愿意自己敲命令的话,在项目目录 <code>{{PROJECT_PATH}}</code> 下执行。</p>
+
+  <h3>{{CMD_1_NAME}} · {{CMD_1_DESC}}</h3>
+  <div class="cmd">{{CMD_1_RUN}}<button data-copy>复制</button></div>
+  <p class="args">{{CMD_1_ARGS}}</p>
+
+  <h3>{{CMD_2_NAME}} · {{CMD_2_DESC}}</h3>
+  <div class="cmd">{{CMD_2_RUN}}<button data-copy>复制</button></div>
+  <p class="args">{{CMD_2_ARGS}}</p>
+
+  <h3>通用参数</h3>
+  <div class="tbl"><table>
+    <thead><tr><th style="width:38%">参数</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td><code>{{OPT_1}}</code></td><td>{{OPT_1_DESC}}</td></tr>
+      <tr><td><code>{{OPT_2}}</code></td><td>{{OPT_2_DESC}}</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>设备返回的错误码</h3>
+  <div class="tbl"><table>
+    <thead><tr><th style="width:26%">code</th><th>意思</th><th>怎么办</th></tr></thead>
+    <tbody>
+      <tr><td><span class="dot bad"></span><code>E_CMD</code></td><td>设备不认识这个指令</td><td>说「给 {{DEVICE_NAME}} 加个 XX 功能」</td></tr>
+      <tr><td><span class="dot warn"></span><code>E_ARG</code></td><td>参数缺失或越界</td><td>对照上面的参数范围重试</td></tr>
+      <tr><td><span class="dot warn"></span><code>E_BUSY</code></td><td>设备正忙</td><td>等 1 秒再试</td></tr>
+      <tr><td><span class="dot bad"></span><code>E_HW</code></td><td>硬件没响应</td><td>看「常见问题」里的接线 / 供电</td></tr>
+      <tr><td><span class="dot warn"></span><code>E_TIMEOUT</code></td><td>设备内部超时</td><td>重试一次,仍失败就重启设备</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 5. 常见问题 -->
+<section class="block" id="faq">
+  <h2><span class="n">4</span>常见问题</h2>
+  <p class="lead">先看现象,展开看原因和做法。</p>
+  <details class="faq"><summary>{{FAQ_1_Q}}</summary><div class="body"><b>原因</b> {{FAQ_1_WHY}}<br><b>怎么办</b> {{FAQ_1_FIX}}</div></details>
+  <details class="faq"><summary>{{FAQ_2_Q}}</summary><div class="body"><b>原因</b> {{FAQ_2_WHY}}<br><b>怎么办</b> {{FAQ_2_FIX}}</div></details>
+  <details class="faq"><summary>{{FAQ_3_Q}}</summary><div class="body"><b>原因</b> {{FAQ_3_WHY}}<br><b>怎么办</b> {{FAQ_3_FIX}}</div></details>
+</section>
+
+<!-- 6. 安全 -->
+<section class="block" id="safe">
+  <h2><span class="n">5</span>安全须知</h2>
+  <div class="safe">
+    <div class="t">动线之前先断电。</div>
+    <ul>
+      <li>{{SAFETY_1}}</li>
+      <li>{{SAFETY_2}}</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  项目路径 <code>{{PROJECT_PATH}}</code> · 固件 {{FW_VERSION}} · 生成于 {{DATE}}<br>
+  想加功能?在 Claude Code 里说「给 {{DEVICE_NAME}} 加个 XX 功能」。
+</footer>
+
+</main>
+
+<script>
+/* 一键复制 */
+document.querySelectorAll('[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var t=b.parentNode.textContent.replace(/复制$|已复制$/,'').trim();
+    if(!navigator.clipboard)return;
+    navigator.clipboard.writeText(t).then(function(){b.textContent='已复制';setTimeout(function(){b.textContent='复制'},1200)});
+  });
+});
+</script>
+<script type="module">
+/* hero 3D 背景:three.js 走 CDN,失败或离线就静默降级 */
+(async function(){
+  var canvas=document.getElementById('hero-3d');
+  if(!canvas||!window.WebGLRenderingContext)return;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var THREE;
+  try{ THREE=await import('https://unpkg.com/three@0.160.0/build/three.module.js'); }
+  catch(e){ return; }
+
+  var css=getComputedStyle(document.documentElement);
+  var cA=new THREE.Color(css.getPropertyValue('--accent').trim()||'#ff4d6d');
+  var cB=new THREE.Color(css.getPropertyValue('--accent-2').trim()||'#4dd0ff');
+
+  var renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true,powerPreference:'low-power'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  var scene=new THREE.Scene();
+  var cam=new THREE.PerspectiveCamera(45,1,.1,100); cam.position.set(0,0,9);
+
+  /* 点云:一个缓慢旋转的环面,颜色在两种主题色间渐变 */
+  var N=2600, pos=new Float32Array(N*3), col=new Float32Array(N*3);
+  for(var i=0;i<N;i++){
+    var u=Math.random()*Math.PI*2, v=Math.random()*Math.PI*2, R=2.6, r=.9+Math.random()*.35;
+    pos[i*3]=(R+r*Math.cos(v))*Math.cos(u);
+    pos[i*3+1]=(R+r*Math.cos(v))*Math.sin(u);
+    pos[i*3+2]=r*Math.sin(v);
+    var c=cA.clone().lerp(cB,(Math.sin(u*2)+1)/2);
+    col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;
+  }
+  var g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  var m=new THREE.PointsMaterial({size:.045,vertexColors:true,transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false});
+  var pts=new THREE.Points(g,m); pts.rotation.x=1.05; pts.position.x=2.2; scene.add(pts);
+
+  /* 一圈细线做骨架,和点云同步旋转 */
+  var ring=new THREE.Mesh(new THREE.TorusGeometry(2.6,1.0,24,90),new THREE.MeshBasicMaterial({color:cB,wireframe:true,transparent:true,opacity:.07}));
+  ring.rotation.copy(pts.rotation); ring.position.copy(pts.position); scene.add(ring);
+
+  var mx=0,my=0;
+  addEventListener('pointermove',function(e){mx=(e.clientX/innerWidth-.5);my=(e.clientY/innerHeight-.5)},{passive:true});
+
+  function resize(){
+    var w=canvas.clientWidth,h=canvas.clientHeight;
+    if(canvas.width!==w||canvas.height!==h){renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+    if(w<640){pts.position.x=ring.position.x=0;} else {pts.position.x=ring.position.x=2.2;}
+  }
+  var t0=performance.now();
+  function frame(now){
+    resize();
+    var t=(now-t0)/1000;
+    if(!reduce){ pts.rotation.z=t*.08; ring.rotation.z=t*.08; pts.rotation.y=ring.rotation.y=mx*.35; pts.rotation.x=ring.rotation.x=1.05+my*.25; }
+    renderer.render(scene,cam);
+    if(!reduce)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  canvas.classList.add('on');
+})();
+</script>
+</body>
+</html>

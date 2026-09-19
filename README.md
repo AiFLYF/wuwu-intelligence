@@ -10,21 +10,26 @@ A Claude Code Skill that lets you control registered hardware in plain language,
 
 ## ✨ 特性 Features
 
-- **控制已有设备** — 读 `devices.json` 注册表，按口语别名匹配设备，自动取 IP 并执行
-- **接入全新设备** — 六阶段流程：确认目标 → 接线方案 → 固件开发 → 编译烧录 → PC 端封装 → 测试+登记
-- **扩展已有设备** — 三步法：固件加 `cmd` 分支 → Python 库加方法 → CLI 加子命令
-- **排障决策树** — WiFi / 供电共地 / 编译烧录 / 动画卡顿等真实踩坑沉淀
-- **通信协议模板** — TCP + 单行 JSON + 非阻塞状态机，可直接套用
+- **控制已有设备（快路径）** — 只读 `devices.json` 一个文件，按口语匹配 `commands` 立刻执行；不读源码、不预先 ping、不问「确认吗」；失败才自动重试 + 排障
+- **接入全新设备** — 一轮选择题问清需求 → 认识的模块直接干，不认识就联网搜或自己探测排除 → 按项目和需求自动选工具链（Arduino / PlatformIO / ESP-IDF / MicroPython / 树莓派 Python 等，不预设）→ 接线（唯一等你的一步）→ 固件/烧录/PC 端全自主 → 登记 + 交付说明书
+- **创意工坊** — 「我有几个模块不知道做什么」→ 几道选择题 → 给 2-3 个方案（效果/用到什么/还缺什么/难度）→ 你选一个就开干
+- **扩展已有设备** — 三步法：固件加 `cmd` 分支 → Python 库加方法 → CLI 加子命令，完成后同步更新说明书
+- **HTML 交付说明书** — 单文件模板，填占位符、换主题色即成；three.js 3D 头图（离线自动降级），含「你可以这样说」指令表、错误码表、常见问题、安全须知
+- **排障决策树** — 先自动复现 + ping + 读日志，再按错误码 / WiFi 状态码 / 供电共地 / 编译烧录分支排查，真实踩坑沉淀
+- **通信协议模板** — 单行 JSON + 统一错误码（E_CMD / E_ARG / E_BUSY / E_HW / E_TIMEOUT）+ 非阻塞状态机，WiFi TCP / USB 串口 / BLE 三种传输可选
 
 ## 📁 目录结构 Structure
 
 ```
 wuwu-intelligence/
-├── SKILL.md              # 技能主文件（触发条件 + 四条工作流 + 小白守则）
+├── SKILL.md              # 技能主文件（触发条件 + 五条工作流 + 小白守则）
 ├── devices.json.example  # 设备注册表模板（复制为 devices.json 后按你的设备填写）
 ├── references/
-│   ├── new-device-playbook.md   # 新设备接入手册（六阶段）
-│   ├── protocol-template.md     # 通信协议骨架
+│   ├── new-device-playbook.md   # 新设备接入手册（一轮问卷 → 自主推进 → 交付）
+│   ├── idea-workshop.md         # 创意工坊（有模块不知道做什么）
+│   ├── delivery-doc-guide.md    # HTML 说明书生成指南
+│   ├── manual-template.html     # 说明书模板（填占位符 + 换主题色即可）
+│   ├── protocol-template.md     # 通信协议骨架（统一错误码，tcp / serial / ble）
 │   ├── extension-guide.md       # 扩展已有设备三步法
 │   └── troubleshooting.md       # 排障决策树
 └── README.md
@@ -54,7 +59,7 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 ### 验证安装
 
 新会话里问一句：「你现在加载了哪些技能？有没有万物智能？」
-或直接说「灯板设成红色」——如果设备已登记，技能会读 `devices.json` 开始工作；如果还没登记设备，它会列出模板并引导你填写。
+或直接说「灯板设成红色」——如果设备已登记，技能会读 `devices.json` 直接执行；如果还没登记设备，它会告诉你注册表是空的，并问你是要接入新设备还是手动填写。
 
 ### 🤖 让 Agent 自动安装
 
@@ -69,24 +74,20 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 ## 🗣️ 使用示例 Usage
 
 ```
-“帮我把灯板全部设置为红色”
-“演示一下灯板 demo”
-“灯连不上了”
-“我买了个舵机，帮我接上并控制”
-“给灯板加个显示文字的功能”
+"帮我把灯板全部设置为红色"        → 直接执行，一句话汇报
+"跑个 demo"                       → 直接执行
+"灯连不上了"                      → 自动重试 + ping，再用人话告诉你原因
+"我买了个舵机，帮我接上并控制"    → 几道选择题 → 自主接入 → 说明书
+"我有个温湿度模块和灯带，能做啥"  → 给你 2-3 个方案选
+"给灯板加个显示文字的功能"        → 三步法扩展 + 更新说明书
+"打开灯板说明书"                  → 打开 HTML 说明书
 ```
 
-技能会：
-1. 读 `devices.json` 找到对应设备
-2. 取 IP（从设备项目中 `device.json` 自动记住的地址）
-3. 执行对应命令/脚本并验证结果
-4. 用中文汇报结果，失败则走排障流程
+控制类指令的原则：**从你开口到命令跑起来，中间只读 `devices.json` 一个文件**。不读源码、不预先检查连接、不问确认。失败了才自动重试一次、ping 一下，然后走排障树。
 
 ## 📝 注册自己的设备
 
-复制 `devices.json.example` 为 `devices.json`（本地文件，不入库），按模板新增一条：
-
-> 模板里的示例设备 RGB_ding（ESP32-S3 + WS2812B-64 灯板）**不随本仓库发布**，示例条目仅演示格式，请替换为你自己的项目路径和命令。
+复制 `devices.json.example` 为 `devices.json`（本地文件，不入库）。初始 `devices` 数组为空，`_template` 只是格式示范，**技能不会把它当成真实设备**。新增一条到 `devices` 里：
 
 ```json
 {
@@ -100,19 +101,39 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
     "transport": "tcp:8888",
     "ip_lookup": "pc/device.json"
   },
+  "global_options": {
+    "--ip <地址>": "指定设备 IP，成功一次后自动记住",
+    "--forget": "清除记住的 IP"
+  },
+  "commands": {
+    "color": {
+      "desc": "全部灯珠设为同一颜色；关灯就是 0 0 0",
+      "run": "python pc/cli.py color {r} {g} {b}",
+      "args": {"r": "红 0-255", "g": "绿 0-255", "b": "蓝 0-255"}
+    },
+    "demo": {
+      "desc": "依次展示所有效果",
+      "run": "python pc/demo.py"
+    }
+  },
   "hardware": {
     "mcu": "ESP32-S3",
-    "signal_pin": "GPIO38"
+    "toolchain": "arduino",
+    "signal_pin": "GPIO38",
+    "flash_port": "COM7",
+    "power": "独立5V，与主控共地"
   },
-  "quick_examples": {
-    "示例": "python pc/cli.py <cmd>"
-  }
+  "manual": "docs/manual.html"
 }
 ```
+
+`commands` 是快路径的核心，相当于把 `--help` 写进注册表：`desc` 一句话说这条命令做什么（技能靠它理解你的口语，不用穷举说法），`run` 是真实命令模板，`args` 写清每个占位符的含义、范围和默认值；`global_options` 列出所有子命令通用的可选参数。写全之后技能**只读这一个文件就能控制设备**，不跑 `--help`、不读代码。检验标准：一个没看过代码的人只读这份档案就能正确敲出每条命令。通过技能接入的设备会自动写好这一段。
 
 ## 📖 参考文档 References
 
 - [新设备接入手册](references/new-device-playbook.md)
+- [创意工坊](references/idea-workshop.md)
+- [HTML 说明书生成指南](references/delivery-doc-guide.md) · [说明书模板](references/manual-template.html)
 - [通信协议模板](references/protocol-template.md)
 - [扩展指南](references/extension-guide.md)
 - [排障决策树](references/troubleshooting.md)
