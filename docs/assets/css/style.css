@@ -970,10 +970,13 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .agent-checks { padding: 18px 20px 22px; border-top: 1px solid var(--line); }
 .ac-title { color: var(--acc); margin-bottom: 12px; }
 .agent-checks ol { list-style: none; display: flex; flex-direction: column; gap: 11px; }
-.agent-checks li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; color: var(--mut); font-size: 13px; line-height: 1.8; }
-.agent-checks li b { color: var(--acc); font-weight: 400; }
+/* 注意：这里不能用 grid/flex —— <li> 里混着裸文本和 <code>/<strong>，
+   grid 会把每一段连续文本都当成独立网格项轮流塞进标号列，正文会被挤成"一字一行"。
+   标号用绝对定位、正文保持正常行内流。 */
+.agent-checks li { position: relative; padding-left: 26px; color: var(--mut); font-size: 13px; line-height: 1.8; }
+.agent-checks li b { position: absolute; left: 0; top: 0; color: var(--acc); font-weight: 400; }
 .agent-checks li strong { color: var(--ink); font-weight: 600; }
-.agent-checks code { color: var(--ink); }
+.agent-checks code { color: var(--ink); overflow-wrap: anywhere; }
 
 .verify-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
 .vg-cell { background: var(--bg-2); padding: 20px; }
