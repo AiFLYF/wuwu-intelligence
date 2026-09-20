@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>万物智能 WUWU® — 用一句人话，驱动每一颗硬件</title>
+  <meta name="description" content="万物智能 WuWu Intelligence — 对接并控制任意硬件设备的通用工作流。一个面向小白的 Claude Code Skill：听懂就直接做，做完一句话汇报，出了问题才排查。">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#060608">
+  <meta property="og:title" content="万物智能 WUWU® — Universal Hardware Workflow">
+  <meta property="og:description" content="一个面向小白的 Claude Code 技能：控制已有设备 · 接入全新设备 · 扩展功能 · 编译烧录 · 创意工坊。用一句人话，驱动每一颗硬件。">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%202v20M2%2012h20M4.9%204.9l14.2%2014.2M19.1%204.9L4.9%2019.1'%20stroke='%23C6FF4A'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <script>
+    /* 默认「全部可见」，只有确认能跑 JS 时才启用入场动画。
+       file:// 直开时浏览器会拦截 ES module（three.js），此时走静态降级并给出提示。 */
+    (function () {
+      var root = document.documentElement;
+      if (location.protocol === 'file:') root.className += ' is-file';
+      else root.className += ' js';
+    })();
+  </script>
+
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+
+  <script type="importmap">
+    { "imports": { "three": "./assets/vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+
+  <!-- ── Preloader ───────────────────────────────────────────── -->
+  <div id="preloader" aria-hidden="true">
+    <div class="pre-top mono">
+      <span>WUWU® INTELLIGENCE</span>
+      <span>正在连接硬件 / CONNECTING HARDWARE</span>
+    </div>
+    <div class="pre-mid">
+      <div class="pre-count"><span id="preCount">00</span><em>%</em></div>
+      <div class="pre-grid" id="preGrid"></div>
+    </div>
+    <div class="pre-bar"><span id="preBar"></span></div>
+  </div>
+
+  <!-- ── Ambient layers ──────────────────────────────────────── -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="scroll-bar" aria-hidden="true"><span id="scrollBar"></span></div>
+
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header class="site-head">
+    <a class="brand" href="#index" data-target="0" data-hover>
+      <svg class="brand-ast" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/></svg>
+      <span class="brand-word">WUWU<sup>®</sup></span>
+      <span class="brand-cn mono">万物智能</span>
+    </a>
+
+    <nav class="site-nav mono" aria-label="章节导航">
+      <a href="#index"     data-target="0" data-hover><i>00</i>INDEX</a>
+      <a href="#manifesto" data-target="1" data-hover><i>01</i>MANIFESTO</a>
+      <a href="#workflows" data-target="2" data-hover><i>02</i>WORKFLOWS</a>
+      <a href="#registry"  data-target="3" data-hover><i>03</i>REGISTRY</a>
+      <a href="#install"   data-target="4" data-hover><i>04</i>INSTALL</a>
+    </nav>
+
+    <div class="head-meta mono">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span class="hm-label">LOCAL</span>
+      <span id="clock">--:--:--</span>
+    </div>
+
+    <button class="burger" id="burger" aria-label="打开菜单" aria-expanded="false" data-hover>
+      <span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ── Mobile menu ─────────────────────────────────────────── -->
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu-nav mono">
+      <a href="#index"     data-target="0"><i>00</i><b>INDEX</b><span>首页</span></a>
+      <a href="#manifesto" data-target="1"><i>01</i><b>MANIFESTO</b><span>它是什么</span></a>
+      <a href="#workflows" data-target="2"><i>02</i><b>WORKFLOWS</b><span>五条工作流</span></a>
+      <a href="#registry"  data-target="3"><i>03</i><b>REGISTRY</b><span>设备注册表</span></a>
+      <a href="#install"   data-target="4"><i>04</i><b>INSTALL</b><span>安装</span></a>
+    </nav>
+    <div class="menu-foot mono">
+      <a href="https://github.com/AiFLYF/wuwu-intelligence" target="_blank" rel="noopener">GITHUB ↗</a>
+      <a href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/README.md" target="_blank" rel="noopener">README ↗</a>
+    </div>
+  </div>
+
+  <!-- ── Side chapter index ──────────────────────────────────── -->
+  <nav class="side-index mono" aria-label="章节索引">
+    <button data-target="0" data-hover><span class="si-num">00</span><span class="si-label">INDEX</span></button>
+    <button data-target="1" data-hover><span class="si-num">01</span><span class="si-label">MANIFESTO</span></button>
+    <button data-target="2" data-hover><span class="si-num">02</span><span class="si-label">WORKFLOWS</span></button>
+    <button data-target="3" data-hover><span class="si-num">03</span><span class="si-label">REGISTRY</span></button>
+    <button data-target="4" data-hover><span class="si-num">04</span><span class="si-label">INSTALL</span></button>
+  </nav>
+
+  <main id="content">
+
+    <!-- ══ 00 / INDEX ════════════════════════════════════════ -->
+    <section class="sec hero" id="index" data-sec="0" data-acc="#FF4B3E">
+      <div class="wrap hero-wrap">
+        <div class="hero-copy">
+          <p class="eyebrow mono" data-load>
+            <span class="live-dot" aria-hidden="true"></span>
+            CLAUDE CODE SKILL · 通用硬件控制工作流
+          </p>
+
+          <h1 class="hero-title" aria-label="万物智能 WUWU">
+            <span class="ht-row"><span class="ht-line" data-load-line>万物智能</span></span>
+            <span class="ht-row"><span class="ht-line ht-outline" data-load-line>WUWU<sup>®</sup></span></span>
+          </h1>
+
+          <p class="hero-sub" data-load>
+            <strong>用一句人话，驱动每一颗硬件。</strong><br>
+            对接并控制任意硬件设备的通用工作流。<br>
+            听懂就直接做，做完一句话汇报，出了问题才排查。
+          </p>
+
+          <div class="hero-cta" data-load>
+            <a class="btn btn-solid" href="https://github.com/AiFLYF/wuwu-intelligence" target="_blank" rel="noopener" data-hover>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              <span>GITHUB</span>
+            </a>
+            <a class="btn btn-ghost" href="#install" data-target="4" data-hover>
+              <span>安装 ↓</span>
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/README.md" target="_blank" rel="noopener" data-hover>
+              <span>README 文档</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="hero-visual" data-load>
+          <div class="led-stage">
+            <canvas id="led" aria-label="8×8 WS2812B LED 矩阵实时演示"></canvas>
+            <div class="led-scan" aria-hidden="true"></div>
+          </div>
+          <div class="led-hud mono">
+            <span class="led-pat" id="ledPattern">PATTERN 01 — SOLID RED</span>
+            <span class="led-dots" id="ledDots" role="tablist" aria-label="灯板效果"></span>
+          </div>
+          <p class="led-cap mono">8×8 WS2812B-64 · 64 LEDs · <button type="button" id="ledNext" data-hover>点击面板换效果</button></p>
+        </div>
+      </div>
+
+      <div class="wrap hero-strip mono">
+        <span><b>5</b> WORKFLOWS</span><i aria-hidden="true">✳</i>
+        <span><b>1</b> FILE FAST PATH</span><i aria-hidden="true">✳</i>
+        <span><b>3</b> TRANSPORTS</span><i aria-hidden="true">✳</i>
+        <span><b>8×8</b> LED MATRIX VERIFIED</span><i aria-hidden="true">✳</i>
+        <span>MIT LICENSE</span>
+      </div>
+    </section>
+
+    <!-- ══ 01 / MANIFESTO ════════════════════════════════════ -->
+    <section class="sec manifesto" id="manifesto" data-sec="1" data-acc="#FFB020">
+      <div class="wrap">
+        <div class="sec-head mono" data-reveal><span>01</span>MANIFESTO · 它是什么</div>
+
+        <h2 class="statement">
+          <span class="st-line" data-reveal style="--d:0s">YOU SAY IT.</span>
+          <span class="st-line" data-reveal style="--d:.08s">HARDWARE</span>
+          <span class="st-line" data-reveal style="--d:.16s">just <em class="serif">does it</em>.</span>
+        </h2>
+
+        <p class="lede" data-reveal style="--d:.24s">
+          它不是一个库，也不是一个 SDK —— 它是<strong>一套方法论 + 一张设备注册表</strong>。
+          技能本身不绑定任何特定硬件，你登记过的设备就是它能指挥的全部；
+          想加新设备，把型号告诉它就行。
+        </p>
+
+        <div class="cards-3">
+          <article class="pcard" data-reveal style="--d:0s">
+            <span class="pcard-i mono">01</span>
+            <h3>只读一个文件</h3>
+            <p>控制请求从你开口到命令跑起来，中间只读 <code>devices.json</code>。不读固件源码、不跑 <code>--help</code>、不预先 ping、不问你「确认吗」。</p>
+          </article>
+          <article class="pcard" data-reveal style="--d:.08s">
+            <span class="pcard-i mono">02</span>
+            <h3>不预设工具链</h3>
+            <p>Arduino / PlatformIO / ESP-IDF / MicroPython / 树莓派 Python —— 按你的项目和手头材料现选，而不是硬套一套。</p>
+          </article>
+          <article class="pcard" data-reveal style="--d:.16s">
+            <span class="pcard-i mono">03</span>
+            <h3>用人话汇报</h3>
+            <p>成功就一句话；失败先自己重试一次、ping 一下、读段日志，再用人话告诉你原因和下一步，不甩堆栈。</p>
+          </article>
+        </div>
+
+        <div class="compare" data-reveal style="--d:.22s">
+          <div class="cmp-head mono">
+            <span></span><span>没有它</span><span class="cmp-hi">有万物智能</span>
+          </div>
+          <div class="cmp-row">
+            <span class="cmp-k mono">控制设备</span>
+            <span class="cmp-a">翻文档、跑 --help、读源码，试到能跑为止</span>
+            <span class="cmp-b">说一句「灯板设成红色」，直接执行</span>
+          </div>
+          <div class="cmp-row">
+            <span class="cmp-k mono">接入新模块</span>
+            <span class="cmp-a">自己查资料、对引脚、配环境、写固件</span>
+            <span class="cmp-b">一轮问卷 → 自己选工具链 → 自己烧录 → 自动登记</span>
+          </div>
+          <div class="cmp-row">
+            <span class="cmp-k mono">出错的时候</span>
+            <span class="cmp-a">贴一大段堆栈给你，剩下自己猜</span>
+            <span class="cmp-b">先自己复现 + ping + 读日志，再顺着决策树往下排</span>
+          </div>
+          <div class="cmp-row">
+            <span class="cmp-k mono">交付文档</span>
+            <span class="cmp-a">没有，或者只有一份 README</span>
+            <span class="cmp-b">自动生成单文件 HTML 说明书，能直接给别人看</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="marquee" aria-hidden="true">
+        <div class="marquee-track">
+          <div class="marquee-group" id="marqueeGroup">
+            <span>快路径 FAST PATH</span><i>✳</i>
+            <span>DEVICES.JSON</span><i>✳</i>
+            <span>五条工作流</span><i>✳</i>
+            <span>ESP32-S3</span><i>✳</i>
+            <span>WS2812B</span><i>✳</i>
+            <span>排障决策树</span><i>✳</i>
+            <span>TCP / SERIAL / BLE</span><i>✳</i>
+            <span>统一错误码</span><i>✳</i>
+            <span>自然语言控制</span><i>✳</i>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 02 / WORKFLOWS ════════════════════════════════════ -->
+    <section class="sec workflows" id="workflows" data-sec="2" data-acc="#35D9FF">
+      <div class="wrap">
+        <div class="sec-head mono" data-reveal><span>02</span>WORKFLOWS · 五条工作流</div>
+
+        <div class="wf-intro">
+          <h2 class="statement sm">
+            <span class="st-line" data-reveal style="--d:0s">五类意图，</span>
+            <span class="st-line" data-reveal style="--d:.08s">五条路径。</span>
+          </h2>
+          <p class="lede" data-reveal style="--d:.16s">
+            你不用记指令，也不用学语法。说人话，技能自己判断该走哪条路 ——
+            想控制、想接入、想扩展、想烧录、还是只想找点灵感。
+          </p>
+        </div>
+
+        <div class="wf-grid">
+          <a class="wf-card" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/SKILL.md" target="_blank" rel="noopener" data-reveal data-hover style="--d:0s">
+            <div class="wf-top">
+              <span class="wf-idx mono">A</span>
+              <span class="led-mini" data-pattern="fill" aria-hidden="true"></span>
+            </div>
+            <h3>FAST PATH</h3>
+            <h4>控制已有设备</h4>
+            <p>只读 <code>devices.json</code> 一个文件，按口语匹配 <code>commands</code> 立刻执行。零前置检查，失败了才重试 + 排障。</p>
+            <span class="wf-say mono">「灯板设成红色」</span>
+            <span class="wf-link mono">SKILL.MD <i>↗</i></span>
+          </a>
+
+          <a class="wf-card" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/references/new-device-playbook.md" target="_blank" rel="noopener" data-reveal data-hover style="--d:.06s">
+            <div class="wf-top">
+              <span class="wf-idx mono">B</span>
+              <span class="led-mini" data-pattern="scan" aria-hidden="true"></span>
+            </div>
+            <h3>ONBOARD</h3>
+            <h4>接入全新设备</h4>
+            <p>一轮选择题问清需求 → 认识的模块直接干，不认识就联网搜或自己探测排除 → 自动选工具链 → 接线 → 固件 / 烧录 / PC 端全自主 → 登记 + 出说明书。</p>
+            <span class="wf-say mono">「我买了个舵机，帮我接上」</span>
+            <span class="wf-link mono">NEW-DEVICE-PLAYBOOK <i>↗</i></span>
+          </a>
+
+          <a class="wf-card" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/references/extension-guide.md" target="_blank" rel="noopener" data-reveal data-hover style="--d:.12s">
+            <div class="wf-top">
+              <span class="wf-idx mono">C</span>
+              <span class="led-mini" data-pattern="grow" aria-hidden="true"></span>
+            </div>
+            <h3>EXTEND</h3>
+            <h4>扩展已有功能</h4>
+            <p>三步法：固件加 <code>cmd</code> 分支 → Python 库加同名方法 → CLI 加子命令。改完必须重编译烧录，PC 端跑语法检查，最后同步说明书。</p>
+            <span class="wf-say mono">「给灯板加个显示文字的功能」</span>
+            <span class="wf-link mono">EXTENSION-GUIDE <i>↗</i></span>
+          </a>
+
+          <a class="wf-card" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/SKILL.md" target="_blank" rel="noopener" data-reveal data-hover style="--d:.18s">
+            <div class="wf-top">
+              <span class="wf-idx mono">D</span>
+              <span class="led-mini" data-pattern="flash" aria-hidden="true"></span>
+            </div>
+            <h3>FLASH</h3>
+            <h4>编译烧录固件</h4>
+            <p>按 <code>hardware.toolchain</code> 自适应命令，串口只有一个就自动用；烧录前一句话告知，烧完自己读串口日志确认并把 IP 存下来。</p>
+            <span class="wf-say mono">「编译烧录一下」</span>
+            <span class="wf-link mono">SKILL.MD · 流程 D <i>↗</i></span>
+          </a>
+
+          <a class="wf-card" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/references/idea-workshop.md" target="_blank" rel="noopener" data-reveal data-hover style="--d:.24s">
+            <div class="wf-top">
+              <span class="wf-idx mono">E</span>
+              <span class="led-mini" data-pattern="sparkle" aria-hidden="true"></span>
+            </div>
+            <h3>IDEA LAB</h3>
+            <h4>创意工坊</h4>
+            <p>手上有模块但不知道做什么？几道选择题 → 给 2–3 个方案，每个说清效果 / 用到什么 / 还缺什么 / 难度耗时，你选一个就开干。</p>
+            <span class="wf-say mono">「我有几个模块，能做点啥」</span>
+            <span class="wf-link mono">IDEA-WORKSHOP <i>↗</i></span>
+          </a>
+        </div>
+
+        <a class="wf-wide" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/references/troubleshooting.md" target="_blank" rel="noopener" data-reveal style="--d:.3s" data-hover>
+          <span class="wf-wide-k mono">＋ 贯穿全程</span>
+          <span class="wf-wide-t">
+            <b>TROUBLESHOOTING 排障决策树</b>
+            <em>先自己复现 → ping 设备 IP → 读一段串口日志 → 再顺着错误码（E_CMD / E_ARG / E_BUSY / E_HW / E_TIMEOUT）往下排，只把需要你动手的那一步说出来。</em>
+          </span>
+          <i class="wf-wide-a mono">↗</i>
+        </a>
+      </div>
+    </section>
+
+    <!-- ══ 03 / REGISTRY ═════════════════════════════════════ -->
+    <section class="sec registry" id="registry" data-sec="3" data-acc="#A78BFF">
+      <div class="wrap">
+        <div class="sec-head mono" data-reveal><span>03</span>REGISTRY · 设备注册表</div>
+
+        <div class="reg-head">
+          <h2 class="statement sm">
+            <span class="st-line" data-reveal style="--d:0s">把 <em class="serif">--help</em></span>
+            <span class="st-line" data-reveal style="--d:.08s">写进注册表。</span>
+          </h2>
+          <p class="lede" data-reveal style="--d:.16s">
+            <code>devices.json</code> 是整套东西的核心：每条命令写清「做什么 / 怎么跑 / 参数是什么」，
+            技能读一遍就能理解你的口语并敲出正确的命令。检验标准很简单 ——
+            <strong>一个没看过代码的人，只读这份档案就能正确敲出每条命令。</strong>
+          </p>
+        </div>
+
+        <div class="reg-grid">
+          <div class="reg-prose" data-reveal style="--d:.2s">
+            <ul class="reg-list">
+              <li><b>devices</b><span>数组里才是已登记设备；初始为空，<code>_template</code> 只是格式示范，技能绝不会把它当成真设备去执行。</span></li>
+              <li><b>aliases</b><span>口语叫法。「灯板」「灯珠」「RGB灯」都能匹配到同一台设备。</span></li>
+              <li><b>commands</b><span>口语 → 真实命令的映射，相当于把 <code>--help</code> 写进注册表。</span></li>
+              <li><b>hardware</b><span>主控、工具链、信号引脚、烧录串口、供电注意事项 —— 烧录流程直接读这里。</span></li>
+              <li><b>manual</b><span>交付说明书的路径，说「打开说明书」就打开它。</span></li>
+            </ul>
+            <p class="reg-note mono">
+              通过技能接入的新设备会自动写好这一整段，你不用手填。<br>
+              已装过？<code>devices.json</code> 是本地文件（已被 <code>.gitignore</code> 排除），<code>git pull</code> 不会覆盖你的设备数据。
+            </p>
+          </div>
+
+          <div class="reg-code" data-reveal style="--d:.26s">
+            <div class="code-bar mono"><span>devices.json</span><span>JSON · 本地文件 · 不入库</span></div>
+<pre class="code"><code>{
+  <span class="k">"devices"</span>: [{
+    <span class="k">"name"</span>: <span class="s">"led_matrix_8x8"</span>,
+    <span class="k">"aliases"</span>: [<span class="s">"灯板"</span>, <span class="s">"灯珠"</span>, <span class="s">"RGB灯"</span>],<span class="c">   // 口语叫法，技能靠它匹配</span>
+    <span class="k">"control"</span>: {
+      <span class="k">"cli"</span>: <span class="s">"pc/led_cli.py"</span>,
+      <span class="k">"transport"</span>: <span class="s">"tcp:8888"</span>
+    },
+    <span class="k">"global_options"</span>: {<span class="c">                       // 所有子命令通用</span>
+      <span class="k">"--ip &lt;地址&gt;"</span>: <span class="s">"指定设备 IP，成功一次后自动记住"</span>
+    },
+    <span class="k">"commands"</span>: {
+      <span class="k">"color"</span>: {
+        <span class="k">"desc"</span>: <span class="s">"全部灯珠设为同一颜色；关灯就是 0 0 0"</span>,<span class="c">  // 一句话说做什么</span>
+        <span class="k">"run"</span>:  <span class="s">"python pc/led_cli.py color {r} {g} {b}"</span>,<span class="c"> // 真实命令模板</span>
+        <span class="k">"args"</span>: { <span class="c">                                  // 占位符的含义/范围/默认值</span>
+          <span class="k">"r"</span>: <span class="s">"红 0-255"</span>, <span class="k">"g"</span>: <span class="s">"绿 0-255"</span>, <span class="k">"b"</span>: <span class="s">"蓝 0-255"</span>
+        }
+      }
+    },
+    <span class="k">"hardware"</span>: { <span class="k">"mcu"</span>: <span class="s">"ESP32-S3"</span>, <span class="k">"toolchain"</span>: <span class="s">"arduino"</span> },
+    <span class="k">"manual"</span>: <span class="s">"docs/manual.html"</span>
+  }]
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="flow-wrap" data-reveal style="--d:.3s">
+          <div class="flow-stage">
+            <canvas id="flow" aria-label="从一句话到灯亮起来的信号流"></canvas>
+            <div class="flow-labels" id="flowLabels" aria-hidden="true"></div>
+          </div>
+          <div class="flow-cap mono">
+            <span>从你开口，到灯亮起来 —— 中间只读一个文件</span>
+            <span class="flow-legend">
+              <i class="lg-a"></i>你的话<i class="lg-b"></i>注册表<i class="lg-c"></i>执行<i class="lg-d"></i>汇报
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 04 / INSTALL ══════════════════════════════════════ -->
+    <section class="sec install" id="install" data-sec="4" data-acc="#C6FF4A">
+      <div class="wrap">
+        <div class="sec-head mono" data-reveal><span>04</span>INSTALL · 安装</div>
+
+        <div class="ins-head">
+          <h2 class="statement sm">
+            <span class="st-line" data-reveal style="--d:0s">两条命令，</span>
+            <span class="st-line" data-reveal style="--d:.08s">然后 <em class="serif">just say it</em>.</span>
+          </h2>
+          <p class="lede" data-reveal style="--d:.16s">
+            技能在<strong>会话启动时</strong>加载 —— 装完要<strong>新开一个会话</strong>才会生效。
+            不想自己敲？把一句话丢给任意 Claude Code 会话，让它替你装完。
+          </p>
+        </div>
+
+        <div class="tabs" data-reveal style="--d:.2s">
+          <div class="tab-bar mono" role="tablist" aria-label="安装方式">
+            <button class="tab is-on" role="tab" aria-selected="true"  data-tab="manual" data-hover><i>01</i>手动安装</button>
+            <button class="tab"       role="tab" aria-selected="false" data-tab="agent"  data-hover><i>02</i>让 Agent 自动装</button>
+            <button class="tab"       role="tab" aria-selected="false" data-tab="verify" data-hover><i>03</i>验证与生效</button>
+          </div>
+
+          <!-- 01 manual -->
+          <div class="panel is-on" data-panel="manual" role="tabpanel">
+            <div class="code-bar mono">
+              <span>terminal · bash</span>
+              <button class="copy mono" data-copy="manual" data-hover>复制</button>
+            </div>
+<pre class="code sm"><code id="code-manual"><span class="c"># 1 · 克隆到用户级 skills 目录，Claude Code 自动发现</span>
+<span class="c">#     Windows 下 ~ 就是 C:\Users\&lt;你的用户名&gt;</span>
+<span class="p">$</span> git clone --depth 1 https://github.com/AiFLYF/wuwu-intelligence.git \
+    ~/.claude/skills/wuwu-intelligence
+
+<span class="c"># 2 · 复制设备注册表模板（本地文件，不入库）</span>
+<span class="p">$</span> cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
+     ~/.claude/skills/wuwu-intelligence/devices.json</code></pre>
+            <ul class="panel-notes mono">
+              <li>也可以克隆到某个项目的 <code>.claude/skills/</code> 下，仅在该项目内生效</li>
+              <li>已经装过？进目录 <code>git pull</code> 更新即可，<code>devices.json</code> 不会被覆盖</li>
+              <li>需要本机有 <code>git</code>；控制脚本需要 Python 3（Python 不是技能本身的依赖）</li>
+            </ul>
+          </div>
+
+          <!-- 02 agent -->
+          <div class="panel" data-panel="agent" role="tabpanel">
+            <div class="code-bar mono">
+              <span>把下面这句话发给任意 Claude Code 会话</span>
+              <button class="copy mono" data-copy="agent" data-hover>复制</button>
+            </div>
+<pre class="code sm"><code id="code-agent">请安装 https://github.com/AiFLYF/wuwu-intelligence 这个 Claude Code 技能：
+克隆到 ~/.claude/skills/wuwu-intelligence，
+把 devices.json.example 复制为 devices.json，
+然后告诉我怎么验证。</code></pre>
+            <div class="agent-checks">
+              <p class="mono ac-title">Agent 执行时的自检清单</p>
+              <ol>
+                <li><b>①</b> 确认 <code>~/.claude/skills/wuwu-intelligence/SKILL.md</code> 存在，且 frontmatter 含 <code>name: wuwu-intelligence</code></li>
+                <li><b>②</b> <code>devices.json</code> 不存在时从模板复制；<strong>已存在就不要覆盖</strong> —— 里面有你自己登记的设备</li>
+                <li><b>③</b> 完成后提醒你：新开会话技能才生效</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- 03 verify -->
+          <div class="panel" data-panel="verify" role="tabpanel">
+            <div class="code-bar mono">
+              <span>验证 · 新会话里这样说</span>
+              <button class="copy mono" data-copy="verify" data-hover>复制</button>
+            </div>
+<pre class="code sm"><code id="code-verify"><span class="c"># 装完必须「新开一个会话」，技能才会加载</span>
+
+<span class="c"># 验证一下它在不在：</span>
+<span class="p">你&gt;</span> 你现在加载了哪些技能？有没有万物智能？
+
+<span class="c"># 生效之后，直接说人话就行 —— 分两种情况：</span>
+
+<span class="c"># ① devices.json 还是空的（刚装完默认就是这样，一台设备都没登记）</span>
+<span class="p">你&gt;</span> 我买了个灯板，帮我接上并控制
+<span class="c">→ 走接入手册：一轮问卷 → 自己选工具链 → 接线 → 烧录 → 自动登记 → 出说明书</span>
+
+<span class="c"># ② 已经登记过设备（devices.json 的 devices 数组里有条目）</span>
+<span class="p">你&gt;</span> 灯板设成红色
+<span class="c">→ 读 devices.json 匹配命令，直接执行，回你一句「好了，灯板已设成红色」</span></code></pre>
+            <div class="verify-grid">
+              <div class="vg-cell">
+                <span class="mono vg-k">没设备时</span>
+                <p>技能不会瞎执行。它会告诉你注册表是空的，然后问你是要<strong>接入新设备</strong>（推荐）还是手动填档案。</p>
+              </div>
+              <div class="vg-cell">
+                <span class="mono vg-k">想手填</span>
+                <p>照 <code>devices.json.example</code> 里的 <code>_template</code> 格式，往 <code>devices</code> 数组里加一条就行。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cta-row" data-reveal style="--d:.26s">
+          <a class="btn btn-solid" href="https://github.com/AiFLYF/wuwu-intelligence" target="_blank" rel="noopener" data-hover>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            <span>AIFLYF / WUWU-INTELLIGENCE</span>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/AiFLYF/wuwu-intelligence/blob/main/README.md" target="_blank" rel="noopener" data-hover>
+            <span>README 使用文档 ↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <footer class="site-foot mono">
+          <span>© 2026 WUWU INTELLIGENCE — MIT LICENSE</span>
+          <span class="foot-mid">沉淀自 RGB_DING · ESP32-S3 + WS2812B-64</span>
+          <button class="to-top" data-target="0" data-hover><i>↑</i><span>TOP</span></button>
+        </footer>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="c-dot" aria-hidden="true"></div>
+  <div class="c-ring" aria-hidden="true"></div>
+
+  <!-- file:// 直开时的降级提示 -->
+  <div class="file-note mono" role="note">
+    <b>检测到你是直接双击打开的</b>
+    <span>
+      这个页面用了 ES module（three.js），浏览器会拦截本地模块加载，所以 3D 灯板不会动。
+      在 <code>docs/</code> 目录下跑一句 <code>python -m http.server 8080</code>，再访问
+      <code>http://localhost:8080</code> 即可；部署到 GitHub Pages 也没有这个问题。
+    </span>
+  </div>
+
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>

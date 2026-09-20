@@ -6,6 +6,18 @@
 
 A Claude Code Skill that lets you control registered hardware in plain language, onboard new devices, and extend existing ones. Chinese-friendly, explains before acting.
 
+> 🖥️ **项目介绍页**：[`docs/index.html`](docs/index.html) —— 含一块实时渲染的 8×8 WS2812B 灯板
+> （three.js，7 套效果可切换）、五条工作流的可视化说明，以及「手动安装 / 让 Agent 自动装 / 验证与生效」
+> 三种安装方式。样式、脚本、字体、three.js **全部本地化，离线可跑**。
+>
+> ```bash
+> # 本地预览（用了 ES module，必须走 HTTP，直接双击打开会被浏览器的 CORS 策略拦住）
+> cd docs && python -m http.server 8080
+> # 然后打开 http://localhost:8080
+> ```
+>
+> 部署到 GitHub Pages：Settings → Pages → Source 选 `Deploy from a branch`，目录选 `/docs` 即可。
+
 ---
 
 ## ✨ 特性 Features
@@ -32,6 +44,9 @@ wuwu-intelligence/
 │   ├── protocol-template.md     # 通信协议骨架（统一错误码，tcp / serial / ble）
 │   ├── extension-guide.md       # 扩展已有设备三步法
 │   └── troubleshooting.md       # 排障决策树
+├── docs/                        # 项目介绍页（与技能运行无关，纯展示）
+│   ├── index.html               # 单页介绍页，浏览器直接打开
+│   └── assets/                  # 样式 / 脚本 / 字体 / three.js，全部本地，离线可跑
 └── README.md
 ```
 
