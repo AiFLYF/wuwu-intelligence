@@ -252,7 +252,7 @@ if (flowCanvas) visObs.observe(flowCanvas);
 const preCount = $('#preCount');
 const preBar = $('#preBar');
 const preGrid = $('#preGrid');
-const LOAD_MS = reduced ? 200 : 1450;
+const LOAD_MS = reduced ? 200 : 1000;
 const loadStart = performance.now();
 let gridDots = [];
 
@@ -281,7 +281,7 @@ function loaderTick(now) {
 
   if (p < 1) { requestAnimationFrame(loaderTick); return; }
 
-  Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1600))]).then(() => {
+  Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1100))]).then(() => {
     document.body.classList.add('is-loaded');
     measure();
     requestAnimationFrame(() => {
