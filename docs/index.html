@@ -553,17 +553,78 @@
     </span>
   </div>
 
-  <!-- 兜底：万一模块脚本没能跑起来（路径写错、网络异常、WebGL 被禁用），
-       别让幕布永远盖在页面上 —— 超时或脚本报错就放行。 -->
+  <!-- 幕布兜底与等待动画。
+       关键：模块脚本（three.js 670KB + app.js）下载完之前，app.js 不会运行，
+       幕布必须一直盖着 —— 之前的固定 4.5s 超时会在慢网络冷加载时提前掀幕，
+       露出还没初始化的黑画布和没走起来的时钟（首次加载「动画 UI 不完整」）。
+       现在的规则：app.js 起来了（发 __wuwuBoot 信号）就永不抢跑；
+       没起来且无任何报错 → 大概率还在下载，给足 20s；起来了但 8s 没就绪 → 放行；
+       脚本加载/执行报错 → 立刻放行走静态降级。 -->
   <script>
     (function () {
+      var root = document.documentElement;
       var reveal = function () { document.body.classList.add('is-loaded'); };
+
       window.addEventListener('error', function (e) {
-        if (e && e.target && e.target.tagName === 'SCRIPT') reveal();
+        var t = e && e.target;
+        var isScript = t && t.tagName === 'SCRIPT';      // 模块链加载失败 → 静态降级
+        var isRuntime = t === window || !t;              // 未捕获异常
+        if (isScript || (isRuntime && window.__wuwuBoot)) reveal();
       }, true);
-      setTimeout(function () {
-        if (!document.body.classList.contains('is-loaded')) reveal();
-      }, 4500);
+
+      /* — 等待期动画：app.js 接手前，让幕布保持「活着」—
+         计数沿 t/(t+8) 缓慢爬升（假进度但永不静止），灯阵用与
+         loaderTick 完全相同的蛇形填充，接管时刻无缝衔接。 */
+      var isJs = (root.className || '').indexOf('js') > -1;
+      var preGrid = document.getElementById('preGrid');
+      var preCount = document.getElementById('preCount');
+      var preBar = document.getElementById('preBar');
+      var dots = [];
+
+      if (preGrid && isJs && preGrid.children.length === 0) {
+        var frag = document.createDocumentFragment();
+        for (var i = 0; i < 64; i++) frag.appendChild(document.createElement('i'));
+        preGrid.appendChild(frag);
+        dots = Array.prototype.slice.call(preGrid.children);
+        window.__wuwuPreDots = dots;          // app.js 接管时直接复用，别重建
+      }
+
+      var base = performance.now();
+      function waitTick() {
+        if (window.__wuwuPreHanded || document.body.classList.contains('is-loaded')) {
+          clearInterval(waitIv);
+          return;
+        }
+        var t = (performance.now() - base) / 1000;
+        var p = t / (t + 8);
+        window.__wuwuPreP = p;
+        if (preCount) preCount.textContent = ('0' + Math.floor(p * 100)).slice(-2);
+        if (preBar) preBar.style.transform = 'scaleX(' + p + ')';
+        if (dots.length) {
+          var lit = Math.floor(p * 64);
+          for (var i = 0; i < 64; i++) {
+            var row = Math.floor(i / 8);
+            var k = row % 2 ? row * 8 + (7 - (i % 8)) : i;   // 蛇形，同 loaderTick
+            dots[i].classList.toggle('on', k < lit);
+          }
+        }
+      }
+      var waitIv = 0;
+      if (isJs && preGrid) waitIv = setInterval(waitTick, 200);
+
+      /* — 兜底放行计时 — */
+      var t0 = performance.now();
+      var aliveAt = 0;
+      var iv = setInterval(function () {
+        if (document.body.classList.contains('is-loaded')) { clearInterval(iv); return; }
+        var now = performance.now();
+        if (window.__wuwuBoot) {
+          if (!aliveAt) aliveAt = now;
+          if (now - aliveAt > 8000) { reveal(); clearInterval(iv); }
+        } else if (now - t0 > 20000) {
+          reveal(); clearInterval(iv);
+        }
+      }, 400);
     })();
   </script>
 

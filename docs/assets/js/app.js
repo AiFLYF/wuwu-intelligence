@@ -15,6 +15,11 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = matchMedia('(pointer: fine)').matches;
 
+/* 接管信号：告诉 index.html 里的兜底脚本「模块已经跑起来了」。
+   幕布从这一刻起只听 app.js 的（下载超慢也不抢跑），
+   否则冷加载时 three.js 670KB 还在路上，兜底就先把幕布掀了。 */
+window.__wuwuBoot = performance.now();
+
 /* 字体就绪的等待与预加载计数并行 —— 串行最坏要多等一个超时上限 */
 const fontsReady = Promise.race([
   document.fonts ? document.fonts.ready : Promise.resolve(),
@@ -289,9 +294,9 @@ const preBar = $('#preBar');
 const preGrid = $('#preGrid');
 const LOAD_MS = reduced ? 200 : 1000;
 const loadStart = performance.now();
-let gridDots = [];
+let gridDots = window.__wuwuPreDots || [];
 
-if (preGrid) {
+if (preGrid && gridDots.length === 0) {
   const frag = document.createDocumentFragment();
   for (let i = 0; i < 64; i++) {
     const d = document.createElement('i');
@@ -301,8 +306,17 @@ if (preGrid) {
   gridDots = [...preGrid.children];
 }
 
+// 无缝交接：等待动画停止，计时保留等待期已走过的进度。
+// 注意等待动画显示的是原始 p，loaderTick 显示的是缓动值 1-(1-p)³ ——
+// 直接用 p 起步会瞬间跳变，这里反解缓动，让 loaderTick 的第一个
+// 缓动值恰好等于交接时的显示值：数字不回跳、不跳升，蛇形灯阵不重跑。
+window.__wuwuPreHanded = true;
+const preP = window.__wuwuPreP || 0;
+const startFrac = 1 - Math.pow(1 - preP, 1 / 3);
+const loadStartAdjusted = loadStart - LOAD_MS * startFrac;
+
 function loaderTick(now) {
-  const p = clamp((now - loadStart) / LOAD_MS, 0, 1);
+  const p = clamp((now - loadStartAdjusted) / LOAD_MS, 0, 1);
   const eased = 1 - Math.pow(1 - p, 3);
   if (preCount) preCount.textContent = String(Math.floor(eased * 100)).padStart(2, '0');
   if (preBar) preBar.style.transform = `scaleX(${eased})`;
