@@ -293,7 +293,6 @@ const preCount = $('#preCount');
 const preBar = $('#preBar');
 const preGrid = $('#preGrid');
 const LOAD_MS = reduced ? 200 : 1000;
-const loadStart = performance.now();
 let gridDots = window.__wuwuPreDots || [];
 
 if (preGrid && gridDots.length === 0) {
@@ -306,17 +305,23 @@ if (preGrid && gridDots.length === 0) {
   gridDots = [...preGrid.children];
 }
 
-// 无缝交接：等待动画停止，计时保留等待期已走过的进度。
-// 注意等待动画显示的是原始 p，loaderTick 显示的是缓动值 1-(1-p)³ ——
-// 直接用 p 起步会瞬间跳变，这里反解缓动，让 loaderTick 的第一个
-// 缓动值恰好等于交接时的显示值：数字不回跳、不跳升，蛇形灯阵不重跑。
+// 无缝交接：等待动画停止，从它停下的位置接着走完。
+// 等待动画显示的是原始 p，loaderTick 显示的是缓动值 1-(1-p)³ ——
+// 这里反解缓动，让 loaderTick 的第一个缓动值恰好等于交接时的显示值。
+//
+// 基准必须取「首帧时间戳」，不能用 loadStart：rAF 回调拿到的 now 可能
+// 早于它被注册的时刻（第 21 行到第 296 行之间要建 64×N 个灯点、
+// 初始化两个 three 场景，耗时可达数百毫秒）。用 loadStart 当基准会让
+// 首帧的 p 为负、被 clamp 成 0，幕布数字就会从 preP 归零再跳升。
 window.__wuwuPreHanded = true;
 const preP = window.__wuwuPreP || 0;
 const startFrac = 1 - Math.pow(1 - preP, 1 / 3);
-const loadStartAdjusted = loadStart - LOAD_MS * startFrac;
 
+let tickBase = 0;
 function loaderTick(now) {
-  const p = clamp((now - loadStartAdjusted) / LOAD_MS, 0, 1);
+  if (!tickBase) tickBase = now;                     // 首帧对齐，杜绝回跳
+  const elapsed = (now - tickBase) / LOAD_MS;
+  const p = clamp(startFrac + elapsed * (1 - startFrac), 0, 1);
   const eased = 1 - Math.pow(1 - p, 3);
   if (preCount) preCount.textContent = String(Math.floor(eased * 100)).padStart(2, '0');
   if (preBar) preBar.style.transform = `scaleX(${eased})`;
