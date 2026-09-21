@@ -7,9 +7,16 @@
   <meta name="description" content="万物智能 WuWu Intelligence — 对接并控制任意硬件设备的通用工作流。一个面向小白的 Claude Code Skill：听懂就直接做，做完一句话汇报，出了问题才排查。">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#060608">
+  <link rel="canonical" href="https://aiflyf.github.io/wuwu-intelligence/">
   <meta property="og:title" content="万物智能 WUWU® — Universal Hardware Workflow">
   <meta property="og:description" content="一个面向小白的 Claude Code 技能：控制已有设备 · 接入全新设备 · 扩展功能 · 编译烧录 · 创意工坊。用一句人话，驱动每一颗硬件。">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://aiflyf.github.io/wuwu-intelligence/">
+  <meta property="og:site_name" content="万物智能 WUWU®">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="万物智能 WUWU® — 用一句人话，驱动每一颗硬件">
+  <meta name="twitter:description" content="对接并控制任意硬件设备的通用工作流 · 一个面向小白的 Claude Code 技能。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%202v20M2%2012h20M4.9%204.9l14.2%2014.2M19.1%204.9L4.9%2019.1'%20stroke='%23C6FF4A'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3C/svg%3E">
 
   <script>
@@ -25,11 +32,21 @@
   <link rel="stylesheet" href="assets/css/fonts.css">
   <link rel="stylesheet" href="assets/css/style.css">
 
+  <!-- 首屏显示字体提前预取，避免大标题先闪一下回退字体 -->
+  <link rel="preload" href="assets/fonts/f03.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/f02.woff2" as="font" type="font/woff2" crossorigin>
+
+  <!-- three.js 有 670KB，是首屏灯板的关键路径。不预载的话，要等 app.js
+       下载并解析完才被发现，白白多花两个来回。 -->
+  <link rel="modulepreload" href="assets/vendor/three.module.min.js">
+
   <script type="importmap">
     { "imports": { "three": "./assets/vendor/three.module.min.js" } }
   </script>
 </head>
 <body>
+
+  <a class="skip mono" href="#content">跳到正文 ↓</a>
 
   <!-- ── Preloader ───────────────────────────────────────────── -->
   <div id="preloader" aria-hidden="true">
@@ -102,7 +119,7 @@
     <button data-target="4" data-hover><span class="si-num">04</span><span class="si-label">INSTALL</span></button>
   </nav>
 
-  <main id="content">
+  <main id="content" tabindex="-1">
 
     <!-- ══ 00 / INDEX ════════════════════════════════════════ -->
     <section class="sec hero" id="index" data-sec="0" data-acc="#FF4B3E">
@@ -140,12 +157,12 @@
 
         <div class="hero-visual" data-load>
           <div class="led-stage">
-            <canvas id="led" aria-label="8×8 WS2812B LED 矩阵实时演示"></canvas>
+            <canvas id="led" role="img" aria-label="8×8 WS2812B LED 矩阵实时演示，可切换 7 套光效"></canvas>
             <div class="led-scan" aria-hidden="true"></div>
           </div>
           <div class="led-hud mono">
             <span class="led-pat" id="ledPattern">PATTERN 01 — SOLID RED</span>
-            <span class="led-dots" id="ledDots" role="tablist" aria-label="灯板效果"></span>
+            <span class="led-dots" id="ledDots" role="group" aria-label="灯板效果切换"></span>
           </div>
           <p class="led-cap mono">8×8 WS2812B-64 · 64 LEDs · <button type="button" id="ledNext" data-hover>点击面板换效果</button></p>
         </div>
@@ -391,7 +408,7 @@
 
         <div class="flow-wrap" data-reveal style="--d:.3s">
           <div class="flow-stage">
-            <canvas id="flow" aria-label="从一句话到灯亮起来的信号流"></canvas>
+            <canvas id="flow" role="img" aria-label="从一句话到灯亮起来的信号流：你说的话 → devices.json → 执行 → 汇报"></canvas>
             <div class="flow-labels" id="flowLabels" aria-hidden="true"></div>
           </div>
           <div class="flow-cap mono">
@@ -422,13 +439,13 @@
 
         <div class="tabs" data-reveal style="--d:.2s">
           <div class="tab-bar mono" role="tablist" aria-label="安装方式">
-            <button class="tab is-on" role="tab" aria-selected="true"  data-tab="manual" data-hover><i>01</i>手动安装</button>
-            <button class="tab"       role="tab" aria-selected="false" data-tab="agent"  data-hover><i>02</i>让 Agent 自动装</button>
-            <button class="tab"       role="tab" aria-selected="false" data-tab="verify" data-hover><i>03</i>验证与生效</button>
+            <button class="tab is-on" id="tab-manual" role="tab" aria-selected="true"  aria-controls="panel-manual" tabindex="0"  data-tab="manual" data-hover><i>01</i>手动安装</button>
+            <button class="tab"       id="tab-agent"  role="tab" aria-selected="false" aria-controls="panel-agent"  tabindex="-1" data-tab="agent"  data-hover><i>02</i>让 Agent 自动装</button>
+            <button class="tab"       id="tab-verify" role="tab" aria-selected="false" aria-controls="panel-verify" tabindex="-1" data-tab="verify" data-hover><i>03</i>验证与生效</button>
           </div>
 
           <!-- 01 manual -->
-          <div class="panel is-on" data-panel="manual" role="tabpanel">
+          <div class="panel is-on" id="panel-manual" data-panel="manual" role="tabpanel" aria-labelledby="tab-manual">
             <div class="code-bar mono">
               <span>terminal · bash</span>
               <button class="copy mono" data-copy="manual" data-hover>复制</button>
@@ -449,7 +466,7 @@
           </div>
 
           <!-- 02 agent -->
-          <div class="panel" data-panel="agent" role="tabpanel">
+          <div class="panel" id="panel-agent" data-panel="agent" role="tabpanel" aria-labelledby="tab-agent">
             <div class="code-bar mono">
               <span>把下面这句话发给任意 Claude Code 会话</span>
               <button class="copy mono" data-copy="agent" data-hover>复制</button>
@@ -469,7 +486,7 @@
           </div>
 
           <!-- 03 verify -->
-          <div class="panel" data-panel="verify" role="tabpanel">
+          <div class="panel" id="panel-verify" data-panel="verify" role="tabpanel" aria-labelledby="tab-verify">
             <div class="code-bar mono">
               <span>验证 · 新会话里这样说</span>
               <button class="copy mono" data-copy="verify" data-hover>复制</button>
@@ -535,6 +552,20 @@
       <code>http://localhost:8080</code> 即可；部署到 GitHub Pages 也没有这个问题。
     </span>
   </div>
+
+  <!-- 兜底：万一模块脚本没能跑起来（路径写错、网络异常、WebGL 被禁用），
+       别让幕布永远盖在页面上 —— 超时或脚本报错就放行。 -->
+  <script>
+    (function () {
+      var reveal = function () { document.body.classList.add('is-loaded'); };
+      window.addEventListener('error', function (e) {
+        if (e && e.target && e.target.tagName === 'SCRIPT') reveal();
+      }, true);
+      setTimeout(function () {
+        if (!document.body.classList.contains('is-loaded')) reveal();
+      }, 4500);
+    })();
+  </script>
 
   <script type="module" src="assets/js/app.js"></script>
 </body>

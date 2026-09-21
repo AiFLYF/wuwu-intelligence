@@ -1,12 +1,5 @@
 /* Self-hosted fonts — Clash Display (ITF FFL, via Fontshare), Space Mono & Instrument Serif (OFL, via Google Fonts) */
-/* Clash Display */
-@font-face {
-  font-family: 'Clash Display';
-  src: url('../fonts/f01.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-  font-style: normal;
-}
+/* Clash Display —— 页面只用到 600 / 700；500 字重（原 f01）从未被任何元素命中，已移除 */
 @font-face {
   font-family: 'Clash Display';
   src: url('../fonts/f02.woff2') format('woff2');

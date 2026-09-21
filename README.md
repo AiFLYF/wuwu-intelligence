@@ -6,20 +6,7 @@
 
 A Claude Code Skill that lets you control registered hardware in plain language, onboard new devices, and extend existing ones. Chinese-friendly, explains before acting.
 
-> 🖥️ **项目介绍页 → https://aiflyf.github.io/wuwu-intelligence/**
->
-> 源码在 [`docs/`](docs/index.html)，含一块实时渲染的 8×8 WS2812B 灯板
-> （three.js，7 套效果可切换）、五条工作流的可视化说明，以及「手动安装 / 让 Agent 自动装 / 验证与生效」
-> 三种安装方式。样式、脚本、字体、three.js **全部本地化，离线可跑**。
->
-> ```bash
-> # 本地预览（用了 ES module，必须走 HTTP，直接双击打开会被浏览器的 CORS 策略拦住）
-> cd docs && python -m http.server 8080
-> # 然后打开 http://localhost:8080
-> ```
->
-> 已经部署在 GitHub Pages（`main` 分支的 `/docs` 目录）；换仓库或换分支时：
-> Settings → Pages → Source 选 `Deploy from a branch`，目录选 `/docs`。
+🖥️ **[项目介绍页 → aiflyf.github.io/wuwu-intelligence](https://aiflyf.github.io/wuwu-intelligence/)**
 
 ---
 
@@ -48,7 +35,7 @@ wuwu-intelligence/
 │   ├── extension-guide.md       # 扩展已有设备三步法
 │   └── troubleshooting.md       # 排障决策树
 ├── docs/                        # 项目介绍页（与技能运行无关，纯展示）
-│   ├── index.html               # 单页介绍页，浏览器直接打开
+│   ├── index.html               # 单页介绍页（走 HTTP 预览效果完整，见下方「介绍页与本地预览」）
 │   └── assets/                  # 样式 / 脚本 / 字体 / three.js，全部本地，离线可跑
 └── README.md
 ```
@@ -155,6 +142,21 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 - [通信协议模板](references/protocol-template.md)
 - [扩展指南](references/extension-guide.md)
 - [排障决策树](references/troubleshooting.md)
+
+## 🛠 介绍页与本地预览 Development
+
+[`docs/`](docs/index.html) 是纯展示用的项目介绍页，与技能运行无关：
+
+- **内容**：一块实时渲染的 8×8 WS2812B 灯板（three.js，7 套效果可切换）、五条工作流的可视化说明，以及「手动安装 / 让 Agent 自动装 / 验证与生效」三种安装方式
+- **资源**：样式、脚本、字体、three.js 全部本地化，**离线可跑**，不依赖任何 CDN
+- **本地预览**（用了 ES module，必须走 HTTP，直接双击打开会被浏览器的 CORS 策略拦住）：
+
+  ```bash
+  cd docs && python -m http.server 8080
+  # 然后打开 http://localhost:8080
+  ```
+
+- **部署**：已部署在 GitHub Pages（`main` 分支的 `/docs` 目录）。换仓库或换分支时：Settings → Pages → Source 选 `Deploy from a branch`，目录选 `/docs`
 
 ## 🔒 隐私 Privacy
 

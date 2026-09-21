@@ -8,13 +8,7 @@
    ============================================================ */
 
 import * as THREE from 'three';
-
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
-const smoothstep = (e0, e1, x) => {
-  const t = clamp((x - e0) / (e1 - e0), 0, 1);
-  return t * t * (3 - 2 * t);
-};
+import { clamp, damp, smoothstep, radialTexture } from './three-common.js';
 
 /* 链路节点：value 桌面用、short 窄屏用 */
 const NODES = [
@@ -29,23 +23,6 @@ const SPAN_H = 3.2;    // 横向：首尾节点 x = ±3.2
 const SPAN_V = 2.05;   // 竖向：首尾节点 y = ±2.05
 const MIN_H = 3.6;     // 横向布局至少保证的可视高度（世界单位）
 const RING_R = 0.4;    // 圆环半径
-
-function radialTexture() {
-  const S = 256;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = S;
-  const cx = cv.getContext('2d');
-  const g = cx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-  g.addColorStop(0.00, 'rgba(255,255,255,0.92)');
-  g.addColorStop(0.22, 'rgba(255,255,255,0.30)');
-  g.addColorStop(0.58, 'rgba(255,255,255,0.06)');
-  g.addColorStop(1.00, 'rgba(255,255,255,0)');
-  cx.fillStyle = g;
-  cx.fillRect(0, 0, S, S);
-  const t = new THREE.CanvasTexture(cv);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
 
 export function initFlow(canvas, labelHost) {
   if (!canvas) return null;
@@ -80,34 +57,38 @@ export function initFlow(canvas, labelHost) {
   const nodes = NODES.map((n) => {
     const c = new THREE.Color(n.color);
 
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    const glowMat = new THREE.SpriteMaterial({
       map: glowTex, color: c, transparent: true, opacity: 0.4,
       depthWrite: false, blending: THREE.AdditiveBlending,
-    }));
+    });
+    const glow = new THREE.Sprite(glowMat);
     glow.scale.set(1.12, 1.12, 1);
 
-    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+    const ringMat = new THREE.MeshBasicMaterial({
       color: c, transparent: true, opacity: 0.5, depthWrite: false,
-    }));
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = 0.44;
 
-    const core = new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({
+    const coreMat = new THREE.MeshBasicMaterial({
       color: c, transparent: true, opacity: 0.9,
-    }));
+    });
+    const core = new THREE.Mesh(coreGeo, coreMat);
 
     const g = new THREE.Group();
     g.add(glow, ring, core);
     group.add(g);
 
-    return { data: n, color: c, g, glow, ring, core };
+    return { data: n, color: c, g, glow, ring, core, glowMat, ringMat, coreMat };
   });
 
   /* ---------- 连线 ---------- */
   const linkGeo = new THREE.BufferGeometry();
   linkGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((NODES.length - 1) * 6), 3));
-  group.add(new THREE.LineSegments(linkGeo, new THREE.LineBasicMaterial({
+  const linkMat = new THREE.LineBasicMaterial({
     color: 0x9aa1ad, transparent: true, opacity: 0.28, depthWrite: false,
-  })));
+  });
+  group.add(new THREE.LineSegments(linkGeo, linkMat));
 
   /* ---------- 沿链路奔跑的光点 ---------- */
   const pPos = new Float32Array(PULSES * 3);
@@ -355,5 +336,15 @@ export function initFlow(canvas, labelHost) {
     },
     update,
     resize,
+    dispose() {
+      active = false;
+      scene.clear();
+      ringGeo.dispose(); coreGeo.dispose();
+      linkGeo.dispose(); pulseGeo.dispose();
+      pulseMat.dispose(); linkMat.dispose(); glowTex.dispose();
+      nodes.forEach((n) => { n.glowMat.dispose(); n.ringMat.dispose(); n.coreMat.dispose(); });
+      labels.forEach((el) => el.remove());
+      renderer.dispose();
+    },
   };
 }

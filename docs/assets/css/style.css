@@ -15,8 +15,8 @@
   --bg-2:      #0A0B0D;
   --bg-3:      #0E1013;
   --ink:       #F4F1EA;
-  --mut:       #8C8C84;
-  --mut-2:     #63635C;
+  --mut:       #8C8C84;                 /* 对 --bg-2 约 5.8:1 */
+  --mut-2:     #7C7C74;                 /* 对 --bg-2 约 4.7:1，10-13px 小字也能过 AA */
   --line:      rgba(244, 241, 234, 0.10);
   --line-2:    rgba(244, 241, 234, 0.20);
   --acc:       #FF4B3E;                 /* JS 按章节更新 */
@@ -65,6 +65,30 @@ a { color: inherit; text-decoration: none; }
 button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
 code { font-family: var(--mono); font-size: 0.92em; }
 
+/* 键盘焦点必须看得见：指针设备用自绘光标，键盘用户全靠这一圈。
+   只动 outline，不碰 border-radius —— 圆角由元素自己的样式决定，
+   以免焦点样式反过来改掉胶囊按钮的形状。 */
+:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 3px;
+}
+
+/* 跳转正文（仅键盘聚焦时出现） */
+.skip {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 300;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #0a0a0a;
+  transform: translateY(-220%);
+  transition: transform 0.3s var(--ease-out);
+}
+.skip:focus { transform: none; }
+#content:focus { outline: none; }
+
 .wrap {
   width: 100%;
   max-width: var(--maxw);
@@ -75,6 +99,21 @@ code { font-family: var(--mono); font-size: 0.92em; }
 /* 宽屏时给右侧章节索引留出一条干净的侧栏，避免压到正文 */
 @media (min-width: 1081px) {
   .wrap { padding-right: calc(var(--pad) + 58px); }
+}
+
+/* viewport-fit=cover 之后，刘海/圆角会盖住贴边内容，这里让开安全区 */
+@supports (padding: env(safe-area-inset-left)) {
+  .site-head {
+    padding-left: max(var(--pad), env(safe-area-inset-left));
+    padding-right: max(var(--pad), env(safe-area-inset-right));
+  }
+  .site-foot { padding-bottom: env(safe-area-inset-bottom); }
+  @media (max-width: 1080px) {
+    .wrap {
+      padding-left: max(var(--pad), env(safe-area-inset-left));
+      padding-right: max(var(--pad), env(safe-area-inset-right));
+    }
+  }
 }
 
 .mono {
@@ -131,10 +170,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
 }
 
 .grain {
+  /* 200% 而非 340%：噪点层是常驻合成层，面积缩小 3 倍省下可观的显存，
+     位移最大 ±3% 仍在留白范围内，边缘不会露出来。 */
   position: fixed;
-  inset: -120%;
-  width: 340%;
-  height: 340%;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
   z-index: 60;
   pointer-events: none;
   opacity: 0.05;
@@ -351,7 +392,8 @@ html.js body.is-loaded .side-index { opacity: 1; }
   transition: opacity 0.35s, transform 0.35s var(--ease-out);
 }
 .side-index button:hover .si-label,
-.side-index button.active .si-label { opacity: 1; transform: none; }
+.side-index button.active .si-label,
+.side-index button:focus-visible .si-label { opacity: 1; transform: none; }
 .side-index button:hover { color: var(--ink); }
 .side-index button.active { color: var(--acc); }
 .side-index .si-num { position: relative; padding-bottom: 2px; }
@@ -557,6 +599,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .led-pat { color: var(--ink); transition: color 0.4s; }
 .led-dots { display: flex; gap: 6px; }
 .led-dots button {
+  position: relative;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--line-2);
@@ -564,6 +607,16 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 }
 .led-dots button:hover { transform: scale(1.4); }
 .led-dots button.on { background: var(--acc); box-shadow: 0 0 8px var(--acc); }
+
+/* 触屏：7px 的点太难点，拉开间距并把热区扩到 24px */
+@media (pointer: coarse) {
+  .led-dots { gap: 17px; }
+  .led-dots button::after {
+    content: "";
+    position: absolute;
+    inset: -8.5px;
+  }
+}
 
 .led-cap { margin-top: 10px; color: var(--mut-2); }
 .led-cap button {
@@ -651,7 +704,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   padding: 20px 0;
   overflow: hidden;
 }
-.marquee-track { display: flex; width: max-content; animation: marq 30s linear infinite; }
+.marquee-track { display: flex; width: max-content; will-change: transform; animation: marq 30s linear infinite; }
 .marquee-group {
   display: flex;
   align-items: center;
@@ -905,9 +958,6 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .fl.on { opacity: 1; }
 .fl-k { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mut); }
 .fl-v { font-family: var(--mono); font-size: 11px; letter-spacing: 0.02em; color: var(--ink); }
-.fl-v.hi { color: #C6FF4A; }
-.fl-2 .fl-v { color: #35D9FF; }
-.fl-3 .fl-v { color: #FFB020; }
 
 .flow-cap {
   max-width: 1000px;
@@ -971,7 +1021,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .ac-title { color: var(--acc); margin-bottom: 12px; }
 .agent-checks ol { list-style: none; display: flex; flex-direction: column; gap: 11px; }
 /* 注意：这里不能用 grid/flex —— <li> 里混着裸文本和 <code>/<strong>，
-   grid 会把每一段连续文本都当成独立网格项轮流塞进标号列，正文会被挤成"一字一行"。
+   grid 会把每一段连续文本都当成独立网格项轮流塞进标号列，正文会被挤成「一字一行」。
    标号用绝对定位、正文保持正常行内流。 */
 .agent-checks li { position: relative; padding-left: 26px; color: var(--mut); font-size: 13px; line-height: 1.8; }
 .agent-checks li b { position: absolute; left: 0; top: 0; color: var(--acc); font-weight: 400; }

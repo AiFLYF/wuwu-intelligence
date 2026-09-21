@@ -8,9 +8,7 @@
    ============================================================ */
 
 import * as THREE from 'three';
-
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
+import { clamp, damp, radialTexture } from './three-common.js';
 
 /* ---------- color helpers (输出直接是 sRGB 分量，与 CSS 十六进制一致) ---------- */
 
@@ -169,25 +167,6 @@ void main() {
   gl_FragColor = vec4(vec3(0.62, 0.66, 0.72) * a, a);
 }`;
 
-/* ---------- glow sprite texture ---------- */
-
-function radialTexture() {
-  const S = 256;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = S;
-  const cx = cv.getContext('2d');
-  const g = cx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-  g.addColorStop(0.00, 'rgba(255,255,255,0.85)');
-  g.addColorStop(0.28, 'rgba(255,255,255,0.32)');
-  g.addColorStop(0.62, 'rgba(255,255,255,0.07)');
-  g.addColorStop(1.00, 'rgba(255,255,255,0)');
-  cx.fillStyle = g;
-  cx.fillRect(0, 0, S, S);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
 /* ---------- scene ---------- */
 
 const G = 8;          // 8 × 8
@@ -225,16 +204,12 @@ export function initLedPanel(canvas, opts = {}) {
   scene.add(group);
 
   const plateGeo = new THREE.BoxGeometry(PLATE, PLATE, 0.34);
-  const plate = new THREE.Mesh(
-    plateGeo,
-    new THREE.MeshBasicMaterial({ color: 0x0a0b0e })
-  );
-  group.add(plate);
+  const plateMat = new THREE.MeshBasicMaterial({ color: 0x0a0b0e });
+  group.add(new THREE.Mesh(plateGeo, plateMat));
 
-  group.add(new THREE.LineSegments(
-    new THREE.EdgesGeometry(plateGeo),
-    new THREE.LineBasicMaterial({ color: 0x3a4048, transparent: true, opacity: 0.85 })
-  ));
+  const edgeGeo = new THREE.EdgesGeometry(plateGeo);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x3a4048, transparent: true, opacity: 0.85 });
+  group.add(new THREE.LineSegments(edgeGeo, edgeMat));
 
   // 8×8 单元栅格
   const gridPts = [];
@@ -245,10 +220,8 @@ export function initLedPanel(canvas, opts = {}) {
   }
   const gridGeo = new THREE.BufferGeometry();
   gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(gridPts, 3));
-  group.add(new THREE.LineSegments(
-    gridGeo,
-    new THREE.LineBasicMaterial({ color: 0x252a31, transparent: true, opacity: 0.9 })
-  ));
+  const gridMat = new THREE.LineBasicMaterial({ color: 0x252a31, transparent: true, opacity: 0.9 });
+  group.add(new THREE.LineSegments(gridGeo, gridMat));
 
   /* — 64 颗灯珠 — */
   const COUNT = G * G;
@@ -308,27 +281,29 @@ export function initLedPanel(canvas, opts = {}) {
   dustGeo.setAttribute('aSize', new THREE.BufferAttribute(dSiz, 1));
   dustGeo.setAttribute('aSeed', new THREE.BufferAttribute(dSeed, 1));
   const dustUni = { uSize: { value: 2.6 }, uDpr: { value: dpr }, uTime: { value: 0 } };
-  const dust = new THREE.Points(dustGeo, new THREE.ShaderMaterial({
+  const dustMat = new THREE.ShaderMaterial({
     uniforms: dustUni,
     vertexShader: DUST_VERT,
     fragmentShader: DUST_FRAG,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-  }));
+  });
+  const dust = new THREE.Points(dustGeo, dustMat);
   dust.frustumCulled = false;
   scene.add(dust);
 
   /* — 板后柔光 — */
   const glowTex = radialTexture();
-  const backGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  const glowMat = new THREE.SpriteMaterial({
     map: glowTex,
     color: 0xff4b3e,
     transparent: true,
     opacity: 0.5,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-  }));
+  });
+  const backGlow = new THREE.Sprite(glowMat);
   backGlow.scale.set(30, 30, 1);
   backGlow.position.z = -6;
   scene.add(backGlow);
@@ -384,10 +359,12 @@ export function initLedPanel(canvas, opts = {}) {
     cur[i * 3] = c[0]; cur[i * 3 + 1] = c[1]; cur[i * 3 + 2] = c[2];
   }
 
-  function setPattern(i, silent) {
+  // 每次换效果都要通知 HUD：自动轮播也不例外，
+  // 否则标签和圆点会一直停在初始的那一套效果上，和灯板对不上。
+  function setPattern(i) {
     patIdx = ((i % PATTERNS.length) + PATTERNS.length) % PATTERNS.length;
     patternT = 0;
-    if (!silent && opts.onPattern) opts.onPattern(patIdx, PATTERNS[patIdx]);
+    if (opts.onPattern) opts.onPattern(patIdx, PATTERNS[patIdx]);
   }
 
   /* — 指针视差 — */
@@ -400,12 +377,14 @@ export function initLedPanel(canvas, opts = {}) {
     pointer.ty = -(((e.clientY - r.top) / r.height) * 2 - 1);
     pointer.on = true;
   }
+  const onLeave = () => { pointer.tx = 0; pointer.ty = 0; };
   if (fine) {
     canvas.addEventListener('pointermove', onMove);
-    canvas.addEventListener('pointerleave', () => { pointer.tx = 0; pointer.ty = 0; });
+    canvas.addEventListener('pointerleave', onLeave);
   }
 
-  canvas.addEventListener('click', () => setPattern(patIdx + 1));
+  const onClick = () => setPattern(patIdx + 1);
+  canvas.addEventListener('click', onClick);
 
   /* — 渲染 — */
   const tmp = new THREE.Color();
@@ -417,7 +396,7 @@ export function initLedPanel(canvas, opts = {}) {
     elapsed += dt;
     patternT += dt;
 
-    if (!reduced && patternT > HOLD) setPattern(patIdx + 1, true);
+    if (!reduced && patternT > HOLD) setPattern(patIdx + 1);
 
     // 逐颗灯珠向目标色平滑过渡
     const p = PATTERNS[patIdx];
@@ -478,10 +457,17 @@ export function initLedPanel(canvas, opts = {}) {
     update,
     resize,
     dispose() {
-      canvas.removeEventListener('click', () => {});
-      if (fine) canvas.removeEventListener('pointermove', onMove);
-      plateGeo.dispose(); gridGeo.dispose(); ledGeo.dispose(); dustGeo.dispose();
-      ledMat.dispose(); glowTex.dispose();
+      canvas.removeEventListener('click', onClick);
+      if (fine) {
+        canvas.removeEventListener('pointermove', onMove);
+        canvas.removeEventListener('pointerleave', onLeave);
+      }
+      scene.clear();
+      plateGeo.dispose(); edgeGeo.dispose(); gridGeo.dispose();
+      ledGeo.dispose(); dustGeo.dispose();
+      plateMat.dispose(); edgeMat.dispose(); gridMat.dispose();
+      ledMat.dispose(); dustMat.dispose(); glowMat.dispose();
+      glowTex.dispose();
       renderer.dispose();
     },
   };

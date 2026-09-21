@@ -7,17 +7,24 @@
 
 import { initLedPanel } from './led-panel.js';
 import { initFlow } from './flow.js';
+import { clamp, damp } from './three-common.js';
 
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = matchMedia('(pointer: fine)').matches;
 
+/* 字体就绪的等待与预加载计数并行 —— 串行最坏要多等一个超时上限 */
+const fontsReady = Promise.race([
+  document.fonts ? document.fonts.ready : Promise.resolve(),
+  new Promise((r) => setTimeout(r, 1100)),
+]);
+
+/* 刷新后不要停在半路，但带 #锚点 分享出去的链接必须尊重锚点 */
 history.scrollRestoration = 'manual';
-window.scrollTo(0, 0);
+const hashEl = location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
+if (!hashEl) window.scrollTo(0, 0);
 
 /* ── 时钟 ──────────────────────────────────────────────────── */
 
@@ -72,11 +79,11 @@ setTimeout(() => {
 
 const sections = $$('[data-sec]');
 let tops = [];
+let scrollMax = 1;
 const measure = () => {
   tops = sections.map((s) => s.offsetTop);
   scrollMax = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
 };
-let scrollMax = 1;
 
 const navLinks = $$('.site-nav a');
 const sideBtns = $$('.side-index button');
@@ -86,8 +93,19 @@ let lastAcc = '';
 function setActive(i) {
   if (i === activeIdx) return;
   activeIdx = i;
-  navLinks.forEach((a, k) => a.classList.toggle('active', k === i));
-  sideBtns.forEach((b, k) => b.classList.toggle('active', k === i));
+  navLinks.forEach((a, k) => {
+    const on = k === i;
+    a.classList.toggle('active', on);
+    // 视觉上是下划线，读屏软件需要 aria-current 才知道「你现在在哪一章」
+    if (on) a.setAttribute('aria-current', 'true');
+    else a.removeAttribute('aria-current');
+  });
+  sideBtns.forEach((b, k) => {
+    const on = k === i;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'true');
+    else b.removeAttribute('aria-current');
+  });
   const acc = sections[i] && sections[i].dataset.acc;
   if (acc && acc !== lastAcc) {
     lastAcc = acc;
@@ -132,16 +150,30 @@ window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu();
 
 const tabs = $$('.tab');
 const panels = $$('.panel');
-tabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    tabs.forEach((t) => {
-      const on = t === tab;
-      t.classList.toggle('is-on', on);
-      t.setAttribute('aria-selected', String(on));
-    });
-    panels.forEach((p) => p.classList.toggle('is-on', p.dataset.panel === tab.dataset.tab));
+
+function selectTab(tab) {
+  tabs.forEach((t) => {
+    const on = t === tab;
+    t.classList.toggle('is-on', on);
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  });
+  panels.forEach((p) => p.classList.toggle('is-on', p.dataset.panel === tab.dataset.tab));
+}
+
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => selectTab(tab));
+  // role="tab" 的惯例：左右方向键在同组标签间移动
+  tab.addEventListener('keydown', (e) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = tabs[(i + step + tabs.length) % tabs.length];
+    next.focus();
+    selectTab(next);
   });
 });
+if (tabs.length) selectTab(tabs.find((t) => t.classList.contains('is-on')) || tabs[0]);
 
 /* ── 复制 ─────────────────────────────────────────────────── */
 
@@ -194,12 +226,15 @@ if (finePointer && !reduced) {
 
 const ledCanvas = $('#led');
 const flowCanvas = $('#flow');
+const ledPatternEl = $('#ledPattern');
 
 const ledPanel = initLedPanel(ledCanvas, {
   onPattern(i, p) {
-    const nameEl = $('#ledPattern');
-    if (nameEl) nameEl.textContent = `PATTERN ${String(i + 1).padStart(2, '0')} — ${p.name}`;
-    $$('#ledDots button').forEach((b, k) => b.classList.toggle('on', k === i));
+    if (ledPatternEl) ledPatternEl.textContent = `PATTERN ${String(i + 1).padStart(2, '0')} — ${p.name}`;
+    $$('#ledDots button').forEach((b, k) => {
+      b.classList.toggle('on', k === i);
+      b.setAttribute('aria-pressed', String(k === i));
+    });
   },
 });
 
@@ -212,22 +247,22 @@ if (ledPanel) {
     ledPanel.patterns.forEach((p, i) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.setAttribute('role', 'tab');
       b.title = p.cn;
       b.setAttribute('aria-label', p.cn);
+      b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', () => ledPanel.setPattern(i));
       dotsHost.appendChild(b);
     });
     dotsHost.addEventListener('mouseover', (e) => {
       const b = e.target.closest('button');
-      if (!b) return;
+      if (!b || !ledPatternEl) return;
       const k = [...dotsHost.children].indexOf(b);
-      if (k >= 0) $('#ledPattern').textContent =
+      if (k >= 0) ledPatternEl.textContent =
         `PATTERN ${String(k + 1).padStart(2, '0')} — ${ledPanel.patterns[k].name}`;
     });
     dotsHost.addEventListener('mouseleave', () => {
       const p = ledPanel.patterns[ledPanel.index];
-      $('#ledPattern').textContent =
+      if (ledPatternEl) ledPatternEl.textContent =
         `PATTERN ${String(ledPanel.index + 1).padStart(2, '0')} — ${p.name}`;
     });
   }
@@ -281,12 +316,14 @@ function loaderTick(now) {
 
   if (p < 1) { requestAnimationFrame(loaderTick); return; }
 
-  Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1100))]).then(() => {
+  fontsReady.then(() => {
     document.body.classList.add('is-loaded');
     measure();
     requestAnimationFrame(() => {
       ledPanel && ledPanel.resize();
       flow && flow.resize();
+      // 字体加载会改变文字高度，锚点位置在加载后再校正一次
+      if (hashEl) hashEl.scrollIntoView({ behavior: 'auto', block: 'start' });
     });
   });
 }
