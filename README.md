@@ -20,46 +20,70 @@ A Claude Code Skill that lets you control registered hardware in plain language,
 - **排障决策树** — 先自动复现 + ping + 读日志，再按错误码 / WiFi 状态码 / 供电共地 / 编译烧录分支排查，真实踩坑沉淀
 - **通信协议模板** — 单行 JSON + 统一错误码（E_CMD / E_ARG / E_BUSY / E_HW / E_TIMEOUT）+ 非阻塞状态机，WiFi TCP / USB 串口 / BLE 三种传输可选
 
-## 📁 目录结构 Structure
-
-```
-wuwu-intelligence/
-├── SKILL.md              # 技能主文件（触发条件 + 五条工作流 + 小白守则）
-├── devices.json.example  # 设备注册表模板（复制为 devices.json 后按你的设备填写）
-├── references/
-│   ├── new-device-playbook.md   # 新设备接入手册（一轮问卷 → 自主推进 → 交付）
-│   ├── idea-workshop.md         # 创意工坊（有模块不知道做什么）
-│   ├── delivery-doc-guide.md    # HTML 说明书生成指南
-│   ├── manual-template.html     # 说明书模板（填占位符 + 换主题色即可）
-│   ├── protocol-template.md     # 通信协议骨架（统一错误码，tcp / serial / ble）
-│   ├── extension-guide.md       # 扩展已有设备三步法
-│   └── troubleshooting.md       # 排障决策树
-├── docs/                        # 项目介绍页（与技能运行无关，纯展示）
-│   ├── index.html               # 单页介绍页（走 HTTP 预览效果完整，见下方「介绍页与本地预览」）
-│   └── assets/                  # 样式 / 脚本 / 字体 / three.js，全部本地，离线可跑
-└── README.md
-```
-
 ## 🚀 安装 Installation
 
 > 仓库地址：https://github.com/AiFLYF/wuwu-intelligence
 
-### 手动安装（两条命令）
+### 最省事：直接让 AI 帮你装
+
+把这句话发给任意一个 Claude Code / Codex / Cursor 会话就行：
+
+> 帮我安装 github.com/AiFLYF/wuwu-intelligence 这个 skill，然后告诉我怎么验证。
+
+支持 skill 的 agent 会自己调用 `npx skills` 完成安装。想让 agent 照着更完整的步骤做，见下方 [让 Agent 自动安装](#-让-agent-自动安装)。
+
+### 一条命令（推荐，支持 Claude Code / Codex / Cursor / Copilot 等数十种 agent）
 
 ```bash
-# 1. 克隆到用户级 skills 目录（Claude Code 会自动发现）
-#    Windows 下 ~ 即 C:\Users\<你的用户名>
-git clone --depth 1 https://github.com/AiFLYF/wuwu-intelligence.git \
-  ~/.claude/skills/wuwu-intelligence
+npx skills add AiFLYF/wuwu-intelligence
+```
 
-# 2. 复制设备注册表模板（本地文件，已被 .gitignore 排除）
+只装这一个 skill、装到用户级、跳过确认：
+
+```bash
+npx skills add AiFLYF/wuwu-intelligence --skill wuwu-intelligence -g -y
+```
+
+### Claude Code 插件市场
+
+```
+/plugin marketplace add AiFLYF/wuwu-intelligence
+/plugin install wuwu-intelligence@aiflyf-skills
+```
+
+### 手动安装
+
+```bash
+# 1. 克隆仓库（注意：克隆到任意位置即可，不要直接克隆成 skills 目录）
+git clone --depth 1 https://github.com/AiFLYF/wuwu-intelligence.git
+
+# 2. 把 skill 目录放进用户级 skills 目录
+#    Windows 下 ~ 即 C:\Users\<你的用户名>
+cp -r wuwu-intelligence/skills/wuwu-intelligence ~/.claude/skills/wuwu-intelligence
+
+# 3. 复制设备注册表模板（本地文件，已被 .gitignore 排除，不会被 git pull 覆盖）
 cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
    ~/.claude/skills/wuwu-intelligence/devices.json
 ```
 
-- 也可以克隆到某个项目的 `.claude/skills/` 下，仅在该项目内生效
-- 已安装过？进目录 `git pull` 更新即可
+Windows PowerShell：
+
+```powershell
+Copy-Item -Recurse wuwu-intelligence\skills\wuwu-intelligence "$HOME\.claude\skills\wuwu-intelligence"
+Copy-Item "$HOME\.claude\skills\wuwu-intelligence\devices.json.example" `
+          "$HOME\.claude\skills\wuwu-intelligence\devices.json"
+```
+
+- 也可以放到某个项目的 `.claude/skills/` 下，仅在该项目内生效
+- Codex 从仓库的 `.agents/skills` 读取（用户级目录常见为 `~/.agents/skills/`，以 Codex 官方文档为准）；其他 agent 交给 `npx skills` 自动处理
 - **生效方式**：技能在会话启动时加载——安装后**新开一个 Claude Code 会话**才会生效
+
+> ⚠️ **老用户升级注意**：本仓库已改为标准 Agent Skills 结构，`SKILL.md` 从仓库根移到了
+> `skills/wuwu-intelligence/`。如果你之前是用
+> `git clone <仓库> ~/.claude/skills/wuwu-intelligence` 这种老方式装的，直接 `git pull`
+> 会变成 `~/.claude/skills/wuwu-intelligence/skills/wuwu-intelligence/SKILL.md` 的嵌套结构，
+> **技能将不再被发现**。请按上面的步骤重装一次（你的 `devices.json` 是本地文件，
+> 只要先备份出来再放回新目录就不会丢）。
 
 ### 验证安装
 
@@ -71,7 +95,10 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 把下面这句话发给任意 Claude Code 会话，agent 会照 README 完成全部步骤：
 
 ```
-请安装 https://github.com/AiFLYF/wuwu-intelligence 这个 Claude Code 技能：克隆到 ~/.claude/skills/wuwu-intelligence，把 devices.json.example 复制为 devices.json，然后告诉我怎么验证。
+请安装 https://github.com/AiFLYF/wuwu-intelligence 这个 Claude Code 技能：
+用 npx skills add AiFLYF/wuwu-intelligence 安装，或手动把仓库里
+skills/wuwu-intelligence 目录复制到 ~/.claude/skills/wuwu-intelligence，
+再把 devices.json.example 复制为 devices.json，然后告诉我怎么验证。
 ```
 
 > agent 执行时的自检清单：① 确认 `~/.claude/skills/wuwu-intelligence/SKILL.md` 存在且 frontmatter 含 `name: wuwu-intelligence`；② `devices.json` 不存在时从 `devices.json.example` 复制，**已存在则不要覆盖**（里面有用户自己的设备数据）；③ 完成后提醒用户：新开会话后技能才生效。
@@ -134,14 +161,37 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 
 `commands` 是快路径的核心，相当于把 `--help` 写进注册表：`desc` 一句话说这条命令做什么（技能靠它理解你的口语，不用穷举说法），`run` 是真实命令模板，`args` 写清每个占位符的含义、范围和默认值；`global_options` 列出所有子命令通用的可选参数。写全之后技能**只读这一个文件就能控制设备**，不跑 `--help`、不读代码。检验标准：一个没看过代码的人只读这份档案就能正确敲出每条命令。通过技能接入的设备会自动写好这一段。
 
+## 📁 目录结构 Structure
+
+遵循 [Agent Skills 开放标准](https://agentskills.io/specification)：
+
+```
+wuwu-intelligence/
+├── skills/
+│   └── wuwu-intelligence/    ← 会被安装的那一个 skill
+│       ├── SKILL.md           必需：触发条件 + 五条工作流 + 小白守则
+│       ├── devices.json.example  设备注册表模板（复制为 devices.json 后填写）
+│       ├── references/        按需加载的深入文档（7 篇）
+│       └── LICENSE.txt
+├── .claude-plugin/
+│   └── marketplace.json      Claude Code 插件市场清单
+├── docs/                     项目介绍页（GitHub Pages，与技能运行无关）
+├── tools/                    发布前结构校验脚本
+├── template/SKILL.example.md  新建 skill 的模板
+│                             （刻意不叫 SKILL.md，否则会被 npx skills 当成第二个可安装 skill）
+└── spec/agent-skills-spec.md
+```
+
+Skill 目录名必须与 frontmatter 里的 `name` 一致，这里是 `wuwu-intelligence`。
+
 ## 📖 参考文档 References
 
-- [新设备接入手册](references/new-device-playbook.md)
-- [创意工坊](references/idea-workshop.md)
-- [HTML 说明书生成指南](references/delivery-doc-guide.md) · [说明书模板](references/manual-template.html)
-- [通信协议模板](references/protocol-template.md)
-- [扩展指南](references/extension-guide.md)
-- [排障决策树](references/troubleshooting.md)
+- [新设备接入手册](skills/wuwu-intelligence/references/new-device-playbook.md)
+- [创意工坊](skills/wuwu-intelligence/references/idea-workshop.md)
+- [HTML 说明书生成指南](skills/wuwu-intelligence/references/delivery-doc-guide.md) · [说明书模板](skills/wuwu-intelligence/references/manual-template.html)
+- [通信协议模板](skills/wuwu-intelligence/references/protocol-template.md)
+- [扩展指南](skills/wuwu-intelligence/references/extension-guide.md)
+- [排障决策树](skills/wuwu-intelligence/references/troubleshooting.md)
 
 ## 🛠 介绍页与本地预览 Development
 
@@ -158,6 +208,13 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 
 - **部署**：已部署在 GitHub Pages（`main` 分支的 `/docs` 目录）。换仓库或换分支时：Settings → Pages → Source 选 `Deploy from a branch`，目录选 `/docs`
 
+发布前校验 skill 结构：
+
+```bash
+python tools/validate_skill.py
+claude plugin validate .
+```
+
 ## 🔒 隐私 Privacy
 
 - WiFi 密码等敏感信息不写入本技能任何文件，仅在你的本地项目固件配置区保存
@@ -166,6 +223,9 @@ cp ~/.claude/skills/wuwu-intelligence/devices.json.example \
 ## 📄 License
 
 MIT — 详见 [LICENSE](LICENSE)。
+
+介绍页用到的第三方素材（three.js、自托管字体）许可声明见
+[docs/assets/vendor/LICENSES.md](docs/assets/vendor/LICENSES.md)。
 
 ## 🌱 起源 Origin
 

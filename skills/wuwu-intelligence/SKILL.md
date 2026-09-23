@@ -1,6 +1,11 @@
 ---
 name: wuwu-intelligence
 description: 万物智能 - 对接并控制任意硬件设备的通用工作流。当用户想控制硬件设备(灯板/灯珠/LED/WS2812/舵机/传感器/屏幕/电机等)、说"把灯设成红色""演示一下demo""我买了个新模块帮我接上""给设备加个XX功能""打开说明书""我有几个模块不知道能做什么"、或提到编译/烧录固件、设备连不上时使用。管理已注册设备的控制,支持接入全新设备、扩展已有设备功能、创意方案设计、生成设备使用说明书。
+license: MIT
+compatibility: 需要能执行本地命令。按设备工具链可能还需要 arduino-cli / idf.py / pio / mpremote 之一；接入陌生模块时可能需要联网查型号资料。设备档案与说明书全部留在本地。
+metadata:
+  author: AiFLYF
+  version: "1.1.0"
 ---
 
 # 万物智能 (WuWu Intelligence) - 硬件设备控制通用工作流
