@@ -25,5 +25,8 @@ venv/
 .workbuddy/
 .workbuddy-ai/
 
+# Claude Code 插件运行时产物：marketplace.json 已跟踪，其余本地杂物忽略
+.claude-plugin/
+
 # 打包产物：project-demo-page 技能包（外部素材，不属于本仓库）
 project-demo-page.zip
