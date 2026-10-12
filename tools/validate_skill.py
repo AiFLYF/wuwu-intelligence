@@ -75,7 +75,7 @@ def check(skill_dir):
     warns = []
 
     if not f.is_file():
-        return ["%s: 缺少 SKILL.md（文件名必须大写）"], []
+        return ["%s: 缺少 SKILL.md（文件名必须大写）" % f], []
 
     text = f.read_text(encoding="utf-8")
     fm, err = parse_frontmatter(text)
@@ -131,10 +131,17 @@ def main():
     for d in targets:
         p = Path(d)
         if not (p / "SKILL.md").is_file() and p.is_dir():
-            for sub in sorted(p.iterdir()):
-                if (sub / "SKILL.md").is_file():
-                    errs, warns = check(sub)
-                    bad += _report(sub, errs, warns)
+            subs = [sub for sub in sorted(p.iterdir())
+                    if sub.is_dir() and (sub / "SKILL.md").is_file()]
+            if not subs:
+                # 容器目录里一个 skill 都没有：必须报错，不能静默"通过"
+                print("FAIL %s: 目录下没有任何 skill"
+                      "（没有 SKILL.md，也没有含 SKILL.md 的子目录）" % p)
+                bad += 1
+                continue
+            for sub in subs:
+                errs, warns = check(sub)
+                bad += _report(sub, errs, warns)
             continue
         errs, warns = check(p)
         bad += _report(p, errs, warns)
