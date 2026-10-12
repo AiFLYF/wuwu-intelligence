@@ -14,7 +14,11 @@
   <meta property="og:url" content="https://aiflyf.github.io/wuwu-intelligence/">
   <meta property="og:site_name" content="万物智能 WUWU®">
   <meta property="og:locale" content="zh_CN">
-  <meta name="twitter:card" content="summary">
+  <meta property="og:image" content="https://aiflyf.github.io/wuwu-intelligence/assets/og-cover.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="万物智能 WUWU® 介绍页首屏：实时渲染的 8×8 WS2812B 灯板">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="万物智能 WUWU® — 用一句人话，驱动每一颗硬件">
   <meta name="twitter:description" content="对接并控制任意硬件设备的通用工作流 · 一个面向小白的 Claude Code 技能。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%202v20M2%2012h20M4.9%204.9l14.2%2014.2M19.1%204.9L4.9%2019.1'%20stroke='%23C6FF4A'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3C/svg%3E">
@@ -86,7 +90,7 @@
 
     <div class="head-meta mono">
       <span class="live-dot" aria-hidden="true"></span>
-      <span class="hm-label">LOCAL</span>
+      <span class="hm-label">V1.1.0</span>
       <span id="clock">--:--:--</span>
     </div>
 
@@ -164,7 +168,7 @@
             <span class="led-pat" id="ledPattern">PATTERN 01 — SOLID RED</span>
             <span class="led-dots" id="ledDots" role="group" aria-label="灯板效果切换"></span>
           </div>
-          <p class="led-cap mono">8×8 WS2812B-64 · 64 LEDs · <button type="button" id="ledNext" data-hover>点击面板换效果</button></p>
+          <p class="led-cap mono">8×8 WS2812B-64 · 64 LEDs · 7 套效果 · <button type="button" id="ledNext" data-hover>点击面板换效果</button></p>
         </div>
       </div>
 
@@ -428,7 +432,7 @@
 
         <div class="ins-head">
           <h2 class="statement sm">
-            <span class="st-line" data-reveal style="--d:0s">两条命令，</span>
+            <span class="st-line" data-reveal style="--d:0s">一条命令，</span>
             <span class="st-line" data-reveal style="--d:.08s">然后 <em class="serif">just say it</em>.</span>
           </h2>
           <p class="lede" data-reveal style="--d:.16s">
@@ -547,7 +551,7 @@ skills/wuwu-intelligence 目录复制到 ~/.claude/skills/wuwu-intelligence，
 
       <div class="wrap">
         <footer class="site-foot mono">
-          <span>© 2026 WUWU INTELLIGENCE — MIT LICENSE</span>
+          <span>© 2026 WUWU INTELLIGENCE — MIT · V1.1.0</span>
           <span class="foot-mid">沉淀自 RGB_DING · ESP32-S3 + WS2812B-64</span>
           <button class="to-top" data-target="0" data-hover><i>↑</i><span>TOP</span></button>
         </footer>
