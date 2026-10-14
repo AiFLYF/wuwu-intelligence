@@ -51,8 +51,9 @@ class RegistryTests(unittest.TestCase):
     def test_registry_selection_respects_explicit_path_and_environment(self):
         configured = Path(self.temp.name) / 'shared.json'
         with patch.dict(os.environ, {'WUWU_DEVICES_FILE': str(configured)}):
-            self.assertEqual(registry.select_registry()[0], configured)
-            self.assertEqual(registry.select_registry(self.path)[0], self.path)
+            # Windows temporary paths may contain 8.3 aliases such as RUNNER~1.
+            self.assertEqual(registry.select_registry()[0], configured.resolve())
+            self.assertEqual(registry.select_registry(self.path)[0], self.path.resolve())
 
     def test_legacy_fallback_does_not_hide_existing_devices_with_an_empty_file(self):
         legacy = Path(self.temp.name) / 'old.json'
@@ -73,8 +74,8 @@ class RegistryTests(unittest.TestCase):
         migrated = registry.load_registry(destination)
         self.assertEqual(self.path.read_bytes(), original)
         self.assertEqual(migrated['private_note'], '保留自定义字段')
-        self.assertEqual(migrated['devices'][0]['project_path'], str(self.project))
-        self.assertEqual(registry.make_plan(migrated, destination, '灯板', 'color')['cwd'], str(self.project))
+        self.assertEqual(migrated['devices'][0]['project_path'], str(self.project.resolve()))
+        self.assertEqual(registry.make_plan(migrated, destination, '灯板', 'color')['cwd'], str(self.project.resolve()))
         with self.assertRaisesRegex(registry.RegistryError, '未覆盖'):
             registry.migrate_registry(self.path, destination)
 
@@ -92,7 +93,7 @@ class RegistryTests(unittest.TestCase):
         backup.write_text(json.dumps(self.data), encoding='utf-8')
         destination = Path(self.temp.name) / 'saved.json'
         registry.migrate_registry(backup, destination, base_dir=self.path.parent)
-        self.assertEqual(registry.load_registry(destination)['devices'][0]['project_path'], str(self.project))
+        self.assertEqual(registry.load_registry(destination)['devices'][0]['project_path'], str(self.project.resolve()))
 
     def test_empty_registry_does_not_execute_template(self):
         data = {'devices': [], '_template': self.data['devices'][0]}
@@ -106,7 +107,7 @@ class RegistryTests(unittest.TestCase):
 
     def test_plan_resolves_project_relative_to_registry_not_cwd(self):
         plan = self.plan()
-        self.assertEqual(Path(plan['cwd']), self.project)
+        self.assertEqual(Path(plan['cwd']), self.project.resolve())
         self.assertEqual(plan['argv'][0], sys.executable)
         self.assertFalse((self.project / 'result.json').exists())
 
