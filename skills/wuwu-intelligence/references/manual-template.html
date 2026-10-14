@@ -38,7 +38,7 @@
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{margin:0;font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;color:var(--fg);background:var(--bg);-webkit-font-smoothing:antialiased}
+body{margin:0;font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;color:var(--fg);background:var(--bg);-webkit-font-smoothing:antialiased;overflow-wrap:anywhere}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 p{margin:8px 0}
 code,pre,.mono{font-family:"JetBrains Mono","SF Mono",ui-monospace,Consolas,"Courier New",monospace}
@@ -85,7 +85,7 @@ h3{font-size:1.02rem;margin:26px 0 8px;font-weight:650}
 .wiring .cap{font-size:.8rem;color:var(--fg-3);margin-bottom:8px;font-family:inherit}
 
 /* ── Steps ──────────────────────────────────────────── */
-.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 .steps li{position:relative;padding:16px 18px 16px 62px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
 .steps li::before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:14px;width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;display:grid;place-items:center}
 
@@ -96,7 +96,7 @@ th,td{padding:13px 18px;text-align:left;border-bottom:1px solid var(--line);vert
 th{font-weight:600;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);background:color-mix(in srgb,var(--card) 60%,var(--bg))}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
-.say{display:inline-block;font-weight:600;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);margin:2px 0}
+.say{display:inline-block;font-weight:600;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--fg);margin:2px 0}
 .say::before{content:"“"}.say::after{content:"”"}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:1px}
 .dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.ok{background:var(--ok)}
@@ -130,7 +130,7 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
   main{padding:12px 16px 72px}.card{padding:18px}
   th,td{padding:11px 14px}.cmd{padding-right:16px;padding-bottom:44px}.cmd button{top:auto;bottom:10px}
 }
-@media (prefers-reduced-motion:reduce){.hero::before{animation:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.hero::before{animation:none}*,*::before,*::after{transition:none!important}}
 </style>
 </head>
 <body class="{{HERO_MODE}}"><!-- HERO_MODE:深色主题留空;浅色预设(传感器 / 礼物)填 light-hero -->
@@ -167,7 +167,7 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
 <section class="block" id="wiring" style="margin-top:32px">
   <div class="card">
     <h2><span class="n">⌁</span>接线</h2>
-    <p class="lead">按图接好再上电。所有电源共地。</p>
+    <p class="lead">先断电再按图接线，核对供电与共地要求后上电。</p>
     <div class="wiring"><div class="cap">接线示意</div><pre>{{ASCII_WIRING}}</pre></div>
   </div>
 </section>
@@ -225,9 +225,10 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
     <tbody>
       <tr><td><span class="dot bad"></span><code>E_CMD</code></td><td>设备不认识这个指令</td><td>说「给 {{DEVICE_NAME}} 加个 XX 功能」</td></tr>
       <tr><td><span class="dot warn"></span><code>E_ARG</code></td><td>参数缺失或越界</td><td>对照上面的参数范围重试</td></tr>
-      <tr><td><span class="dot warn"></span><code>E_BUSY</code></td><td>设备正忙</td><td>等 1 秒再试</td></tr>
+      <tr><td><span class="dot warn"></span><code>E_BUSY</code></td><td>设备正忙</td><td>确认指令未执行且可安全重复后再试一次</td></tr>
       <tr><td><span class="dot bad"></span><code>E_HW</code></td><td>硬件没响应</td><td>看「常见问题」里的接线 / 供电</td></tr>
-      <tr><td><span class="dot warn"></span><code>E_TIMEOUT</code></td><td>设备内部超时</td><td>重试一次,仍失败就重启设备</td></tr>
+      <tr><td><span class="dot warn"></span><code>E_TIMEOUT</code></td><td>设备内部超时</td><td>执行结果可能未知；先查询状态，不直接重复动作</td></tr>
+      <tr><td><span class="dot warn"></span><code>E_JSON</code></td><td>消息格式异常</td><td>检查协议版本、分帧和日志混入</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -261,12 +262,29 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
 </main>
 
 <script>
-/* 一键复制 */
-document.querySelectorAll('[data-copy]').forEach(function(b){
-  b.addEventListener('click',function(){
-    var t=b.parentNode.textContent.replace(/复制$|已复制$/,'').trim();
-    if(!navigator.clipboard)return;
-    navigator.clipboard.writeText(t).then(function(){b.textContent='已复制';setTimeout(function(){b.textContent='复制'},1200)});
+/* 复制文本，不包含按钮；file:// 下使用本地回退。 */
+document.querySelectorAll('[data-copy]').forEach(function(button) {
+  var original = button.textContent;
+  var timer;
+  button.addEventListener('click', async function() {
+    var clone = button.parentNode.cloneNode(true);
+    clone.querySelectorAll('button').forEach(function(b) { b.remove(); });
+    var text = clone.textContent.trim();
+    var copied = false;
+    try { await navigator.clipboard.writeText(text); copied = true; }
+    catch (error) {
+      var area = document.createElement('textarea');
+      area.value = text;
+      area.style.cssText = 'position:fixed;opacity:0;left:0;top:0';
+      document.body.appendChild(area);
+      area.select();
+      try { copied = document.execCommand('copy'); } catch (ignored) {}
+      area.remove();
+      button.focus({preventScroll:true});
+    }
+    clearTimeout(timer);
+    button.textContent = copied ? '已复制' : '请手动选择复制';
+    timer = setTimeout(function() { button.textContent = original; }, 1600);
   });
 });
 </script>
@@ -284,7 +302,9 @@ document.querySelectorAll('[data-copy]').forEach(function(b){
   var cA=new THREE.Color(css.getPropertyValue('--accent').trim()||'#ff4d6d');
   var cB=new THREE.Color(css.getPropertyValue('--accent-2').trim()||'#4dd0ff');
 
-  var renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true,powerPreference:'low-power'});
+  var renderer;
+  try { renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true,powerPreference:'low-power'}); }
+  catch (error) { return; }
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   var scene=new THREE.Scene();
   var cam=new THREE.PerspectiveCamera(45,1,.1,100); cam.position.set(0,0,9);
@@ -314,18 +334,30 @@ document.querySelectorAll('[data-copy]').forEach(function(b){
 
   function resize(){
     var w=canvas.clientWidth,h=canvas.clientHeight;
-    if(canvas.width!==w||canvas.height!==h){renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+    if(!w || !h)return;
+    renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
     if(w<640){pts.position.x=ring.position.x=0;} else {pts.position.x=ring.position.x=2.2;}
   }
   var t0=performance.now();
+  var frameId=0;
   function frame(now){
-    resize();
+    if(document.hidden){frameId=0;return;}
     var t=(now-t0)/1000;
     if(!reduce){ pts.rotation.z=t*.08; ring.rotation.z=t*.08; pts.rotation.y=ring.rotation.y=mx*.35; pts.rotation.x=ring.rotation.x=1.05+my*.25; }
     renderer.render(scene,cam);
-    if(!reduce)requestAnimationFrame(frame);
+    frameId=reduce?0:requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  resize();
+  frameId=requestAnimationFrame(frame);
+  addEventListener('resize',function(){resize();if(!frameId)frameId=requestAnimationFrame(frame);});
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden){cancelAnimationFrame(frameId);frameId=0;}
+    else if(!frameId){frameId=requestAnimationFrame(frame);}
+  });
+  matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',function(event){
+    reduce=event.matches;
+    if(!frameId)frameId=requestAnimationFrame(frame);
+  });
   canvas.classList.add('on');
 })();
 </script>

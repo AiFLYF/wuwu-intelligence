@@ -1,0 +1,2 @@
+# Optional browser QA; installed separately from the Skill runtime.
+playwright>=1.50,<2

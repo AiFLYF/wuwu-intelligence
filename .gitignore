@@ -1,6 +1,9 @@
 # 本地覆盖与隐私（devices.json = 本地设备注册表，可能含局域网IP，勿提交）
 device.json
 devices.json
+*.json.lock
+.*.json.*.tmp
+.wuwu-backups/
 *.local.json
 .env
 
@@ -12,6 +15,7 @@ desktop.ini
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
 .venv/
 venv/
 
@@ -26,7 +30,11 @@ venv/
 .workbuddy-ai/
 
 # Claude Code 插件运行时产物：marketplace.json 已跟踪，其余本地杂物忽略
-.claude-plugin/
+.claude-plugin/*
+!.claude-plugin/marketplace.json
+
+# 可选前端开发依赖
+node_modules/
 
 # 打包产物：project-demo-page 技能包（外部素材，不属于本仓库）
 project-demo-page.zip

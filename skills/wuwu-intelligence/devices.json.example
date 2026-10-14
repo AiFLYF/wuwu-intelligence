@@ -1,9 +1,15 @@
 {
-  "_comment": "复制为 devices.json 后使用。devices 数组里才是已登记设备，初始为空；_template 只是格式示范，不是设备，技能不会把它当设备执行。commands 相当于把 --help 写进来：desc=这条命令做什么（一句话，技能靠它理解用户口语），run=真实命令模板，args=每个占位符的含义/范围/默认值（无参数可省略）。global_options 是所有 CLI 命令通用的可选参数。control.transport 写法：tcp:8888 / serial:COM7@115200 / ble:设备名。hardware.toolchain 写法：arduino / esp-idf / platformio / micropython / circuitpython / rpi-python。写全之后技能只读这个文件就能控制设备，不需要跑 --help 或读代码，所以每条命令和参数都必须真实存在。",
+  "_comment": "结构示例，不含驱动或真实设备。仅 devices 数组中的设备可执行；_template 不参与匹配。用 scripts/device_registry.py init 在 ~/.wuwu-intelligence/devices.json 建立空档案；旧安装目录内的档案用 migrate 迁移。新命令使用 argv 参数数组和结构化 args，{python} 表示运行工具的 Python。请按设备实际 CLI 登记，示例命令不是通用驱动。",
   "devices": [],
   "_template": {
     "name": "led_matrix_8x8",
-    "aliases": ["灯板", "灯珠", "RGB灯", "WS2812", "矩阵"],
+    "aliases": [
+      "灯板",
+      "灯珠",
+      "RGB灯",
+      "WS2812",
+      "矩阵"
+    ],
     "description": "ESP32-S3 + WS2812B-64 8x8 全彩 LED 矩阵",
     "project_path": "/path/to/your/RGB_ding",
     "control": {
@@ -20,26 +26,97 @@
     "commands": {
       "color": {
         "desc": "全部灯珠设为同一颜色；关灯就是 0 0 0",
-        "run": "python pc/led_cli.py color {r} {g} {b}",
-        "args": {"r": "红 0-255", "g": "绿 0-255", "b": "蓝 0-255"}
+        "args": {
+          "r": {
+            "type": "integer",
+            "description": "红 0-255",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "g": {
+            "type": "integer",
+            "description": "绿 0-255",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "b": {
+            "type": "integer",
+            "description": "蓝 0-255",
+            "minimum": 0,
+            "maximum": 255
+          }
+        },
+        "argv": [
+          "{python}",
+          "pc/led_cli.py",
+          "color",
+          "{r}",
+          "{g}",
+          "{b}"
+        ],
+        "idempotent": true,
+        "timeout": 10
       },
       "rainbow": {
         "desc": "彩虹色循环流动",
-        "run": "python pc/led_cli.py rainbow --speed {speed}",
-        "args": {"speed": "1-100，默认 20，越大越快"}
+        "args": {
+          "speed": {
+            "type": "integer",
+            "description": "1-100，默认 20，越大越快",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          }
+        },
+        "argv": [
+          "{python}",
+          "pc/led_cli.py",
+          "rainbow",
+          "--speed",
+          "{speed}"
+        ],
+        "idempotent": true,
+        "timeout": 10
       },
       "fade": {
-        "desc": "平滑渐变到目标亮度（调暗/调亮/呼吸灯用这个）",
-        "run": "python pc/led_cli.py fade {n}",
-        "args": {"n": "0-255；调暗≈当前一半，调亮≈200"}
+        "desc": "平滑渐变到指定的绝对亮度",
+        "args": {
+          "n": {
+            "type": "integer",
+            "description": "目标亮度；未指定时设为 128，不推断未知的当前亮度",
+            "minimum": 0,
+            "maximum": 255,
+            "default": 128
+          }
+        },
+        "argv": [
+          "{python}",
+          "pc/led_cli.py",
+          "fade",
+          "{n}"
+        ],
+        "idempotent": true,
+        "timeout": 10
       },
       "demo": {
         "desc": "依次展示所有效果，约 30 秒",
-        "run": "python pc/demo.py"
+        "argv": [
+          "{python}",
+          "pc/demo.py"
+        ],
+        "idempotent": false,
+        "timeout": 60
       },
       "status": {
         "desc": "查询当前模式、亮度、IP、信号强度",
-        "run": "python pc/led_cli.py status"
+        "argv": [
+          "{python}",
+          "pc/led_cli.py",
+          "status"
+        ],
+        "idempotent": true,
+        "timeout": 10,
+        "read_only": true
       }
     },
     "hardware": {
@@ -50,5 +127,6 @@
       "power": "独立5V 4A，与主控共地"
     },
     "manual": "docs/manual.html"
-  }
+  },
+  "version": 1
 }

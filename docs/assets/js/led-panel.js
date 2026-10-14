@@ -10,106 +10,8 @@
 import * as THREE from 'three';
 import { clamp, damp, radialTexture } from './three-common.js';
 
-/* ---------- color helpers (输出直接是 sRGB 分量，与 CSS 十六进制一致) ---------- */
+import { PATTERNS } from './demo-model.js';
 
-function hsv(h, s, v) {
-  h = ((h % 1) + 1) % 1;
-  const i = Math.floor(h * 6);
-  const f = h * 6 - i;
-  const p = v * (1 - s);
-  const q = v * (1 - f * s);
-  const t = v * (1 - (1 - f) * s);
-  switch (i % 6) {
-    case 0: return [v, t, p];
-    case 1: return [q, v, p];
-    case 2: return [p, v, t];
-    case 3: return [p, q, v];
-    case 4: return [t, p, v];
-    default: return [v, p, q];
-  }
-}
-
-/* ---------- 8×8 效果库 ---------- */
-
-const HEART = [
-  '.XX..XX.',
-  'XXXXXXXX',
-  'XXXXXXXX',
-  'XXXXXXXX',
-  '.XXXXXX.',
-  '..XXXX..',
-  '...XX...',
-  '........',
-];
-
-export const PATTERNS = [
-  {
-    id: 'solid',
-    name: 'SOLID RED',
-    cn: '纯色 · 全部灯珠设为红色',
-    fn: () => [1, 0.294, 0.243],
-  },
-  {
-    id: 'rainbow',
-    name: 'RAINBOW WAVE',
-    cn: '彩虹 · 色相沿对角线流动',
-    fn: (x, y, t) => hsv(x / 7 * 0.62 + y / 7 * 0.12 + t * 0.14, 0.94, 1),
-  },
-  {
-    id: 'chase',
-    name: 'CHASE',
-    cn: '追逐 · 亮点沿蛇形顺序跑圈',
-    fn: (x, y, t) => {
-      const k = y * 8 + (y % 2 ? 7 - x : x);
-      const head = (t * 13) % 64;
-      let d = Math.abs(k - head);
-      d = Math.min(d, 64 - d);
-      const b = Math.max(0, 1 - d / 7);
-      return [b * 0.82, b * 0.93, b];
-    },
-  },
-  {
-    id: 'wave',
-    name: 'WAVE',
-    cn: '波浪 · 横向渐变扫过',
-    fn: (x, y, t) => {
-      const b = 0.1 + 0.9 * Math.max(0, Math.sin(x * 0.95 - t * 2.6 + y * 0.35));
-      return [b * 0.12, b * 0.72, b];
-    },
-  },
-  {
-    id: 'breathe',
-    name: 'BREATHE',
-    cn: '呼吸 · 暖白整板明暗起伏',
-    fn: (x, y, t) => {
-      const b = 0.12 + 0.88 * (0.5 - 0.5 * Math.cos(t * 1.5));
-      return [b, b * 0.7, b * 0.4];
-    },
-  },
-  {
-    id: 'heart',
-    name: 'HEART',
-    cn: '点阵图 · 8×8 爱心 + 心跳',
-    fn: (x, y, t) => {
-      if (HEART[y][x] !== 'X') return [0.02, 0.008, 0.012];
-      const p = 0.58 + 0.42 * Math.sin(t * 3.1);
-      return [p, p * 0.11, p * 0.2];
-    },
-  },
-  {
-    id: 'sparkle',
-    name: 'SPARKLE',
-    cn: '随机 · 灯珠不规则闪烁',
-    fn: (x, y, t) => {
-      const k = y * 8 + x;
-      const s = 0.5 + 0.5 * Math.sin(t * 1.7 + k * 2.399);
-      const b = Math.pow(s, 6);
-      return [b, b * 0.88, b];
-    },
-  },
-];
-
-const HOLD = 3.4;   // 每套效果停留秒数
 const FADE = 5.5;   // 过渡阻尼
 
 /* ---------- shaders ---------- */
@@ -135,7 +37,7 @@ void main() {
   if (d > 1.0) discard;
   float halo = pow(1.0 - d, 3.4);          // 外圈柔光
   float core = pow(max(0.0, 1.0 - d * 2.5), 6.0); // 灯芯高光
-  vec3 col = vColor * (halo * 0.85 + core * 1.7) + vec3(core * 0.55);
+  vec3 col = vColor * (halo * 0.85 + core * 1.7) + vColor * (core * 0.55);
   col += vColor * 0.045;                    // 未点亮时的灯珠本体
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -182,7 +84,7 @@ export function initLedPanel(canvas, opts = {}) {
       canvas,
       antialias: true,
       alpha: true,
-      powerPreference: 'high-performance',
+      powerPreference: 'low-power',
     });
   } catch (err) {
     console.warn('[wuwu] WebGL unavailable for LED panel:', err);
@@ -346,10 +248,12 @@ export function initLedPanel(canvas, opts = {}) {
 
   /* — 状态 — */
   const cur = new Float32Array(COUNT * 3);
-  const tgt = new Float32Array(COUNT * 3);
   let patIdx = 0;
   let elapsed = 0;
-  let patternT = 0;
+  let brightness = 128 / 255;
+  let solidColor = [1, 0, 0];
+  let playing = true;
+  let dirty = true;
   let active = true;
   let reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -363,7 +267,7 @@ export function initLedPanel(canvas, opts = {}) {
   // 否则标签和圆点会一直停在初始的那一套效果上，和灯板对不上。
   function setPattern(i) {
     patIdx = ((i % PATTERNS.length) + PATTERNS.length) % PATTERNS.length;
-    patternT = 0;
+    dirty = true;
     if (opts.onPattern) opts.onPattern(patIdx, PATTERNS[patIdx]);
   }
 
@@ -372,6 +276,7 @@ export function initLedPanel(canvas, opts = {}) {
   const fine = matchMedia('(pointer: fine)').matches;
 
   function onMove(e) {
+    if (reduced || !playing) return;
     const r = canvas.getBoundingClientRect();
     pointer.tx = ((e.clientX - r.left) / r.width) * 2 - 1;
     pointer.ty = -(((e.clientY - r.top) / r.height) * 2 - 1);
@@ -383,31 +288,27 @@ export function initLedPanel(canvas, opts = {}) {
     canvas.addEventListener('pointerleave', onLeave);
   }
 
-  const onClick = () => setPattern(patIdx + 1);
-  canvas.addEventListener('click', onClick);
+
 
   /* — 渲染 — */
   const tmp = new THREE.Color();
   let meanR = 1, meanG = 0.29, meanB = 0.24;
 
   function update(dt) {
-    if (!active || dt <= 0) return;
-
-    elapsed += dt;
-    patternT += dt;
-
-    if (!reduced && patternT > HOLD) setPattern(patIdx + 1);
+    if (!active || dt <= 0 || ((reduced || !playing) && !dirty)) return;
+    if (!reduced && playing) elapsed += dt;
+    dirty = false;
 
     // 逐颗灯珠向目标色平滑过渡
     const p = PATTERNS[patIdx];
     const tt = reduced ? 0.6 : elapsed;
     let sr = 0, sg = 0, sb = 0;
     for (let i = 0; i < COUNT; i++) {
-      const c = p.fn(ledX[i], ledY[i], tt);
+      const c = (patIdx === 0 ? solidColor : p.fn(ledX[i], ledY[i], tt)).map(v => v * brightness);
       const i3 = i * 3;
-      cur[i3]     = damp(cur[i3],     c[0], FADE, dt);
-      cur[i3 + 1] = damp(cur[i3 + 1], c[1], FADE, dt);
-      cur[i3 + 2] = damp(cur[i3 + 2], c[2], FADE, dt);
+      cur[i3]     = (reduced || !playing) ? c[0] : damp(cur[i3], c[0], FADE, dt);
+      cur[i3 + 1] = (reduced || !playing) ? c[1] : damp(cur[i3 + 1], c[1], FADE, dt);
+      cur[i3 + 2] = (reduced || !playing) ? c[2] : damp(cur[i3 + 2], c[2], FADE, dt);
       sr += cur[i3]; sg += cur[i3 + 1]; sb += cur[i3 + 2];
     }
     col.set(cur);
@@ -423,7 +324,7 @@ export function initLedPanel(canvas, opts = {}) {
     // 指针视差 + 轻微呼吸
     pointer.x = damp(pointer.x, pointer.tx, 3.2, dt);
     pointer.y = damp(pointer.y, pointer.ty, 3.2, dt);
-    const idle = Math.sin(elapsed * 0.34) * 0.05;
+    const idle = reduced ? 0 : Math.sin(elapsed * 0.34) * 0.05;
     camera.position.x = pointer.x * 1.5;
     camera.position.y = pointer.y * 1.1;
     camera.lookAt(0, 0, 0);
@@ -439,6 +340,7 @@ export function initLedPanel(canvas, opts = {}) {
   }
 
   function resize() {
+    dirty = true;
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
@@ -453,11 +355,14 @@ export function initLedPanel(canvas, opts = {}) {
     get index() { return patIdx; },
     setPattern,
     next: () => setPattern(patIdx + 1),
-    setActive(v) { active = v; },
+    setActive(v) { active = v; dirty = true; },
+    setBrightness(v) { brightness = clamp(v, 0, 255) / 255; dirty = true; },
+    setColor(v) { solidColor = v; dirty = true; },
+    setPlaying(v) { playing = v; dirty = true; },
+    setReducedMotion(v) { reduced = v; dirty = true; if (v) onLeave(); },
     update,
     resize,
     dispose() {
-      canvas.removeEventListener('click', onClick);
       if (fine) {
         canvas.removeEventListener('pointermove', onMove);
         canvas.removeEventListener('pointerleave', onLeave);

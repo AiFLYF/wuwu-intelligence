@@ -1,163 +1,150 @@
 #!/usr/bin/env python3
-"""Validate skill directories against the Agent Skills open standard.
+"""Validate Agent Skills metadata and bundled references.
 
-Spec: https://agentskills.io/specification
-
-Usage:
-    python tools/validate_skill.py skills/*
-    python tools/validate_skill.py .            # single-skill repo root
-
-Zero third party dependencies: PyYAML is used when available, otherwise a
-minimal frontmatter reader is used instead.
+Usage: python tools/validate_skill.py [skill-or-collection ...]
+Install dependencies: python -m pip install -r requirements-dev.txt
 """
-import re
-import sys
-from pathlib import Path
 
-ALLOWED = {"name", "description", "license", "compatibility", "metadata",
-           "allowed-tools"}
+import argparse
+import glob
+import re
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+ROOT = Path(__file__).resolve().parents[1]
+ALLOWED = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-FRONTMATTER_RE = re.compile(r"^---\r?\n(.*?)\r?\n---[ \t]*\r?\n", re.S)
+FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
 
 
 def parse_frontmatter(text):
-    """Return (mapping, error). The simple fallback understands the subset of
-    YAML that skill frontmatter actually uses: scalars and one nested block."""
-    m = FRONTMATTER_RE.match(text)
-    if not m:
-        return None, "frontmatter 必须从文件第一行 --- 开始，并以单独一行 --- 结束"
-    raw = m.group(1)
+    match = FRONTMATTER_RE.match(text)
+    if not match:
+        return None, "frontmatter 必须从第一行 --- 开始，并以单独一行 --- 结束"
     try:
-        import yaml  # noqa: WPS433 - optional dependency
-        data = yaml.safe_load(raw) or {}
+        import yaml
+    except ImportError:
+        return None, "缺少 PyYAML；请运行 python -m pip install -r requirements-dev.txt"
+
+    class UniqueLoader(yaml.SafeLoader):
+        pass
+
+    def mapping(loader, node):
+        result = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node)
+            if not isinstance(key, str):
+                raise ValueError("YAML 字段名必须是字符串")
+            if key in result:
+                raise ValueError(f"YAML 字段重复: {key}")
+            result[key] = loader.construct_object(value_node)
+        return result
+
+    UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
+    try:
+        data = yaml.load(match[1], Loader=UniqueLoader)
         if not isinstance(data, dict):
             return None, "frontmatter 必须是键值映射"
         return data, None
-    except ImportError:
-        pass
-    except Exception as exc:  # malformed YAML
-        return None, "YAML 解析失败: %s" % exc
-
-    data = {}
-    current = None
-    for line in raw.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        indent = len(line) - len(line.lstrip())
-        stripped = line.strip()
-        if stripped.endswith(":") and not stripped.startswith("-"):
-            # Opens a nested block, e.g. "metadata:"
-            key = stripped[:-1].strip()
-            parent = data if indent == 0 else data.setdefault(current, {})
-            parent[key] = {}
-            current = key
-            continue
-        if ":" not in stripped:
-            continue
-        key, _, value = stripped.partition(":")
-        key, value = key.strip(), value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
-        if indent == 0:
-            data[key] = value
-            current = key
-        else:
-            if not isinstance(data.get(current), dict):
-                data[current] = {}
-            data[current][key] = value
-    return data, None
+    except (yaml.YAMLError, ValueError, TypeError) as exc:
+        return None, f"YAML 解析失败: {exc}"
 
 
 def check(skill_dir):
-    p = Path(skill_dir)
-    f = p / "SKILL.md"
-    errs = []
-    warns = []
-
-    if not f.is_file():
-        return ["%s: 缺少 SKILL.md（文件名必须大写）" % f], []
-
-    text = f.read_text(encoding="utf-8")
-    fm, err = parse_frontmatter(text)
-    if err:
-        return ["%s: %s" % (f, err)], []
-
-    name = fm.get("name")
-    desc = fm.get("description")
-
+    path = Path(skill_dir).resolve()
+    file = path / "SKILL.md"
+    errors, warnings = [], []
+    try:
+        text = file.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeError) as exc:
+        return [f"{file}: 无法读取 SKILL.md: {exc}"], []
+    metadata, error = parse_frontmatter(text)
+    if error:
+        return [f"{file}: {error}"], []
+    name, desc = metadata.get("name"), metadata.get("description")
     if not isinstance(name, str) or not name:
-        errs.append("缺少 name")
+        errors.append("缺少字符串 name")
     else:
-        if len(name) > 64 or not NAME_RE.match(name):
-            errs.append("name 不合规（仅小写字母/数字/单个连字符，≤64）: %s" % name)
-        if name != p.name:
-            errs.append("name（%s）与目录名（%s）不一致" % (name, p.name))
-
+        if len(name) > 64 or not NAME_RE.fullmatch(name):
+            errors.append(f"name 不合规（仅小写字母/数字/单个连字符，≤64）: {name}")
+        if name != path.name:
+            errors.append(f"name（{name}）与目录名（{path.name}）不一致")
     if not isinstance(desc, str) or not desc.strip():
-        errs.append("缺少 description")
+        errors.append("缺少字符串 description")
     elif len(desc) > 1024:
-        errs.append("description 超过 1024 字符（当前 %d）" % len(desc))
-
-    compat = fm.get("compatibility")
+        errors.append(f"description 超过 1024 字符（当前 {len(desc)}）")
+    for key in ("compatibility", "license", "allowed-tools"):
+        if key in metadata and (not isinstance(metadata[key], str) or not metadata[key].strip()):
+            errors.append(f"{key} 必须是非空字符串")
+    compat = metadata.get("compatibility")
     if isinstance(compat, str) and len(compat) > 500:
-        errs.append("compatibility 超过 500 字符（当前 %d）" % len(compat))
-
-    extra = set(fm) - ALLOWED
+        errors.append(f"compatibility 超过 500 字符（当前 {len(compat)}）")
+    if "metadata" in metadata:
+        extra_metadata = metadata["metadata"]
+        if not isinstance(extra_metadata, dict) or any(not isinstance(v, str) for v in extra_metadata.values()):
+            errors.append("metadata 必须是字符串到字符串的映射（版本号请加引号）")
+    extra = set(metadata) - ALLOWED
     if extra:
-        warns.append("含非标准字段（跨 agent 可能被拒绝）: %s" % sorted(extra))
+        warnings.append(f"含非标准字段（跨 agent 可能被拒绝）: {sorted(extra)}")
 
     body = text[FRONTMATTER_RE.match(text).end():]
-    lines = body.count("\n") + 1
-    if lines > 500:
-        warns.append("SKILL.md 正文 %d 行，超过建议的 500 行，长内容应拆进 references/" % lines)
-
-    # Every relative file reference in SKILL.md should resolve.
-    for ref in re.findall(r"`([A-Za-z0-9_./-]+\.(?:md|py|html|json|txt))`", body):
-        target = p / ref
-        if "/" in ref and not target.exists():
-            errs.append("SKILL.md 引用了不存在的文件: %s" % ref)
-        if ref.count("/") > 1:
-            warns.append("引用层级过深（建议一层）: %s" % ref)
-
-    return ["%s: %s" % (f, e) for e in errs], ["%s: %s" % (f, w) for w in warns]
-
-
-def main():
-    # template/ and spec/ are scaffolding, not installable skills, so the
-    # default target is the skills/ directory only. (template/ deliberately
-    # ships SKILL.example.md rather than SKILL.md for the same reason.)
-    targets = sys.argv[1:] or ["skills"]
-    bad = 0
-    for d in targets:
-        p = Path(d)
-        if not (p / "SKILL.md").is_file() and p.is_dir():
-            subs = [sub for sub in sorted(p.iterdir())
-                    if sub.is_dir() and (sub / "SKILL.md").is_file()]
-            if not subs:
-                # 容器目录里一个 skill 都没有：必须报错，不能静默"通过"
-                print("FAIL %s: 目录下没有任何 skill"
-                      "（没有 SKILL.md，也没有含 SKILL.md 的子目录）" % p)
-                bad += 1
-                continue
-            for sub in subs:
-                errs, warns = check(sub)
-                bad += _report(sub, errs, warns)
+    if len(body.splitlines()) > 500:
+        warnings.append("SKILL.md 正文超过建议的 500 行，长内容应拆进 references/")
+    # Check bundled references, not hypothetical project paths inside examples.
+    links = re.findall(r"\[[^\]]*\]\(([^)\s]+)\)", body)
+    links += re.findall(r"`((?:references|scripts|assets)/[^`\s]+)`", body)
+    for ref in sorted(set(links)):
+        parsed = urlsplit(ref.strip("<>"))
+        if parsed.scheme or parsed.netloc or not parsed.path:
             continue
-        errs, warns = check(p)
-        bad += _report(p, errs, warns)
-    print("全部通过" if not bad else "共 %d 个错误" % bad)
-    return 1 if bad else 0
+        relative = unquote(parsed.path)
+        target = (path / relative).resolve()
+        if not target.is_relative_to(path):
+            errors.append(f"引用超出 skill 目录: {ref}")
+        elif not target.exists():
+            errors.append(f"SKILL.md 引用了不存在的文件: {ref}")
+    return ([f"{file}: {e}" for e in errors], [f"{file}: {w}" for w in warnings])
 
 
-def _report(path, errs, warns):
-    if not errs and not warns:
-        print("OK   %s" % path)
-    for w in warns:
-        print("WARN %s" % w)
-    for e in errs:
-        print("FAIL %s" % e)
-    return len(errs)
+def discover(path):
+    """Accept a single skill, a collection, or this repository's root."""
+    if (path / "SKILL.md").is_file() or not path.is_dir():
+        return [path]
+    if (path / "skills").is_dir():
+        path = path / "skills"
+    # A skill missing SKILL.md must fail instead of silently disappearing.
+    return [p for p in sorted(path.iterdir()) if p.is_dir()
+            and not p.name.startswith(".") and p.name != "__pycache__"]
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("paths", nargs="*", default=[str(ROOT / "skills")])
+    options = parser.parse_args(argv)
+    errors = 0
+    checked = set()
+    for pattern in options.paths:
+        for value in glob.glob(pattern) or [pattern]:
+            path = Path(value).resolve()
+            targets = discover(path)
+            if not targets:
+                print(f"FAIL {path}: 目录下没有任何 skill")
+                errors += 1
+            for target in targets:
+                if target in checked:
+                    continue
+                checked.add(target)
+                errs, warns = check(target)
+                for warning in warns:
+                    print("WARN " + warning)
+                for error in errs:
+                    print("FAIL " + error)
+                if not errs:
+                    print(f"OK   {target}")
+                errors += len(errs)
+    print("全部通过" if not errors else f"共 {errors} 个错误")
+    return int(bool(errors))
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

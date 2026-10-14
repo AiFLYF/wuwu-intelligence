@@ -4,13 +4,13 @@
     "name": "FLYF"
   },
   "metadata": {
-    "description": "WuWu Intelligence：用自然语言对接并控制任意硬件设备的通用工作流 Skill",
+    "description": "WuWu Intelligence：用自然语言已登记硬件控制、新设备接入与交付的工作流 Skill",
     "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "wuwu-intelligence",
-      "description": "Control registered hardware in plain language, onboard brand new devices, and extend existing ones. No source reading, no confirmation prompts — it just acts.",
+      "description": "Control registered hardware in plain language, onboard brand new devices, and extend existing ones. Includes registry validation, command previews, and local argv-based dispatch.",
       "source": "./",
       "strict": false,
       "skills": [

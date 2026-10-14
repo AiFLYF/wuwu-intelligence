@@ -1,0 +1,2 @@
+# Development checks only. The installed registry helper has no dependencies.
+PyYAML>=6.0.2,<7

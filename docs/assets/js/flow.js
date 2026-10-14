@@ -48,7 +48,7 @@ export function initFlow(canvas, labelHost) {
   scene.add(group);
 
   const glowTex = radialTexture();
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- 节点 ---------- */
   const ringGeo = new THREE.TorusGeometry(RING_R, 0.012, 8, 64);
@@ -224,6 +224,7 @@ export function initFlow(canvas, labelHost) {
   /* ---------- 渲染 ---------- */
   let elapsed = 0;
   let active = true;
+  let dirty = true;
   const tmpC = new THREE.Color();
 
   /* 标签定位：每帧调用，也在 resize / 重新激活时立刻调一次，
@@ -261,7 +262,8 @@ export function initFlow(canvas, labelHost) {
   }
 
   function update(dt) {
-    if (!active || dt <= 0) return;
+    if (!active || dt <= 0 || (reduced && !dirty)) return;
+    dirty = false;
     elapsed += dt;
 
     const t = reduced ? 0.34 : elapsed;
@@ -319,6 +321,7 @@ export function initFlow(canvas, labelHost) {
   }
 
   function resize() {
+    dirty = true;
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
@@ -332,8 +335,10 @@ export function initFlow(canvas, labelHost) {
   return {
     setActive(v) {
       active = v;
+      dirty = true;
       if (v) { group.updateMatrixWorld(true); placeLabels(); }
     },
+    setReducedMotion(v) { reduced = v; dirty = true; },
     update,
     resize,
     dispose() {
