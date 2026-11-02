@@ -8,7 +8,7 @@ export function initDemo() {
   const fallbackDots = [...document.querySelectorAll('#ledFallback i')];
   const flowCanvas = $('#flow');
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
-  const state = { pattern: 0, color: [1, 0, 0], brightness: 128, playing: true, autoplay: true };
+  const state = { pattern: 0, color: [1, 0, 0], brightness: 200, playing: true, autoplay: true };
   let ledPanel = null, flow = null, flowLoading = false;
   let ledVisible = true, flowVisible = false;
   let elapsed = 0, held = 0, last = performance.now(), frameId = 0, dirty = true, lastFallback = 0;

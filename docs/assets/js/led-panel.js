@@ -25,8 +25,11 @@ varying vec3 vColor;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
-  float dist = max(0.5, -mv.z);
-  gl_PointSize = uSize * aSize * uDpr * (20.0 / dist);
+  /* 灯珠在屏幕上的尺寸保持恒定 —— 不要按 1/dist 放大近处的灯珠。
+     板子有 0.2rad 的俯仰，离相机更近的下半部分会被放大，光能摊到更多
+     像素上；舞台一大，下半部分就先掉出饱和，表现为「上亮下暗、
+     底部看不见灯」。透视感由位置和间距负责，不需要靠灯珠大小。 */
+  gl_PointSize = uSize * aSize * uDpr;
   vColor = aColor;
 }`;
 
@@ -37,7 +40,10 @@ void main() {
   if (d > 1.0) discard;
   float halo = pow(1.0 - d, 3.4);          // 外圈柔光
   float core = pow(max(0.0, 1.0 - d * 2.5), 6.0); // 灯芯高光
-  vec3 col = vColor * (halo * 0.85 + core * 1.7) + vColor * (core * 0.55);
+  /* 灯芯必须是无色高光（vec3(core*..)），不是再乘一遍 vColor：
+     真实的 WS2812B 是「彩色光晕 + 近白色灯芯」，染成同一色会变成一片平的红，
+     完全没有灯珠的质感。 */
+  vec3 col = vColor * (halo * 0.85 + core * 1.7) + vec3(core * 0.55);
   col += vColor * 0.045;                    // 未点亮时的灯珠本体
   gl_FragColor = vec4(col, 1.0);
 }`;

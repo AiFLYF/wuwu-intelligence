@@ -96,9 +96,14 @@ code { font-family: var(--mono); font-size: 0.92em; }
   padding-inline: var(--pad);
 }
 
-/* 宽屏时给右侧章节索引留出一条干净的侧栏，避免压到正文 */
-@media (min-width: 1081px) {
-  .wrap { padding-right: calc(var(--pad) + 58px); }
+/* 宽屏时给右侧章节索引留出一条干净的侧栏，避免压到正文。
+   索引实际占 116px（标签最宽 92px + 距右边缘 24px），原来只预留了 58px ——
+   1401–1536px 实测正文右边缘到索引只剩 1–7px，视觉上就是贴在一起/像重叠。
+   现在预留 116 + 48px 呼吸 = 164px；顺带把首屏右列（灯板）左移约 46px，
+   左列文案的左边线不动，仍与页头 logo、章节标题对齐。
+   索引在 ≤1400px 是 display:none，所以断点跟着它走，不白白缩窄正文。 */
+@media (min-width: 1401px) {
+  .wrap { padding-right: calc(var(--pad) + 104px); }
 }
 
 /* viewport-fit=cover 之后，刘海/圆角会盖住贴边内容，这里让开安全区 */
@@ -207,6 +212,56 @@ code { font-family: var(--mono); font-size: 0.92em; }
   transform-origin: left center;
   transition: background 0.8s ease;
 }
+
+/* ── preloader（开场幕布，纯装饰、短时自终止） ──────────────────
+   只在 app.js 跑起来（html.js）时出现；无 JS 或 file:// 直开时
+   直接 display:none，静态内容立即可读。 */
+
+#preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(20px, 4.2vw, 56px);
+  clip-path: inset(0 0 0% 0);
+  transition: clip-path 0.85s var(--ease-io) 0.05s, visibility 0s linear 1.05s;
+}
+html.js #preloader { display: flex; }
+.pre-top { display: flex; justify-content: space-between; gap: 16px; color: var(--mut); }
+.pre-mid { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-block: auto; }
+.pre-count {
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: clamp(4.6rem, 17vw, 13rem);
+  line-height: 0.82;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.pre-count em { font-style: normal; font-size: 0.2em; color: var(--acc); vertical-align: super; margin-left: 0.1em; }
+.pre-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  width: min(34vw, 220px);
+  aspect-ratio: 1;
+  flex: none;
+}
+/* 灯珠的亮度完全由开幕布那段内联脚本每帧写 style.opacity（含 box-shadow，
+   因为 opacity 作用于整个元素的绘制）。这里只给静态外观，不放动画 ——
+   曾有 CSS 呼吸 + JS 蛇形两套动画，交接时 64 颗灯瞬间齐掉到 0.12，看着很乱。 */
+#preGrid i {
+  border-radius: 50%;
+  background: var(--acc);
+  box-shadow: 0 0 10px var(--acc);
+  opacity: 0.1;
+}
+.pre-bar { height: 1px; background: var(--line); position: relative; overflow: hidden; }
+.pre-bar span { position: absolute; inset: 0; background: var(--acc); transform-origin: left center; transform: scaleX(0); }
+body.is-loaded #preloader { clip-path: inset(0 0 100% 0); visibility: hidden; pointer-events: none; }
+html.is-file #preloader { display: none; }
 
 /* ── header ─────────────────────────────────────────────────── */
 
@@ -452,6 +507,21 @@ html.js body.is-loaded [data-load] { opacity: 1; transform: none; }
   align-items: center;
   gap: clamp(28px, 4vw, 64px);
   padding-block: clamp(16px, 3vh, 40px);
+}
+/* 文案要对齐的是「灯板」，不是「灯板 + 下方控件」那一整块。
+   网格的 align-items:center 是拿文案跟整块右列（约 1028px 高）居中的，
+   于是文案比灯板中心低了约 237px —— 1440×810 实测文案中心 562 / 灯板中心
+   408，观感是文案「沉在下面」，底部只剩 24px 留白；而灯板本身在屏幕里是
+   垂直居中的（上留白 157 / 下留白 153）。改成对齐灯板：
+
+     (右列高 − 灯板高) / 2 − 顶线高 = (1028 − 500) / 2 − 27 ≈ 237px
+
+   实测 1081 → 2560px 各宽度下这个差值恒为 237（下方控件高 418px 不随宽度变），
+   所以用定值就够，不需要按视口缩放。tools/check_demo.py 有断言守住这个对齐 ——
+   将来控件改高了，对齐会被 CI 抓到，而不是等肉眼发现。
+   仅在双栏时生效；窄屏是纵向排布，不存在这个错位。 */
+@media (min-width: 1081px) {
+  .hero-copy { transform: translateY(-237px); }
 }
 
 .eyebrow {
@@ -744,7 +814,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .wf-card.in-view .led-mini[data-pattern="fill"] i    { animation: ledFill 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * 40ms); }
 .wf-card.in-view .led-mini[data-pattern="scan"] i    { animation: ledScan 1.9s linear infinite;     animation-delay: calc(var(--c) * 150ms); }
 .wf-card.in-view .led-mini[data-pattern="grow"] i    { animation: ledGrow 3.4s ease-in-out infinite; animation-delay: calc(var(--i) * 42ms); }
-.wf-card.in-view .led-mini[data-pattern="flash"] i   { animation: ledFlash 2.2s steps(1, end) infinite; }
+.wf-card.in-view .led-mini[data-pattern="flash"] i   { animation: ledFlash 2.2s ease-in-out infinite; animation-delay: calc(var(--i) * 24ms); }
 .wf-card.in-view .led-mini[data-pattern="sparkle"] i { animation: ledSpark 2.4s ease-in-out infinite; animation-delay: var(--d); }
 
 @keyframes ledFill {
@@ -763,12 +833,12 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   40%      { opacity: 0.13; }
   100%     { opacity: 0.13; }
 }
+/* 原来这里用 steps(1) 让 64 颗灯齐刷刷硬闪两下 —— 整块格子一起爆闪，
+   读起来是噪点而不是信息。改成沿格序（--i）扫过的一道「写入光」：
+   既贴合这张卡「编译烧录固件」的语义，观感也安静得多。 */
 @keyframes ledFlash {
-  0%, 4%   { opacity: 0.13; }
-  5%, 12%  { opacity: 1; }
-  13%, 19% { opacity: 0.13; }
-  20%, 27% { opacity: 1; }
-  28%, 100%{ opacity: 0.13; }
+  0%, 100% { opacity: 0.13; }
+  38%      { opacity: 0.95; }
 }
 @keyframes ledSpark {
   0%, 100% { opacity: 0.13; }
@@ -981,6 +1051,29 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .to-top i { font-style: normal; color: var(--acc); transition: transform 0.35s var(--ease-out); }
 .to-top:hover i { transform: translateY(-4px); }
 
+/* ── cursor ─────────────────────────────────────────────────── */
+
+.c-dot, .c-ring {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 120;
+  pointer-events: none;
+  border-radius: 50%;
+  mix-blend-mode: difference;
+  opacity: 0;
+}
+.c-dot { width: 6px; height: 6px; background: var(--ink); }
+.c-ring {
+  width: 34px; height: 34px;
+  border: 1px solid rgba(244, 241, 234, 0.6);
+  transition: width 0.35s var(--ease-out), height 0.35s var(--ease-out), border-color 0.35s;
+}
+body[data-cursor="hover"] .c-ring { width: 58px; height: 58px; border-color: rgba(244, 241, 234, 0.95); }
+body.cursor-on .c-dot, body.cursor-on .c-ring { opacity: 1; }
+@media (pointer: fine) {
+  body.cursor-on, body.cursor-on a, body.cursor-on button { cursor: none; }
+}
+
 /* ── 静态降级（无 JS / file:// 直开） ───────────────────────── */
 
 html:not(.js) .burger { display: none; }
@@ -1074,9 +1167,11 @@ html.js .demo-controls { display: grid; gap: 10px; }
 html:not(.js) .panel { display: block; margin-bottom: 24px; }
 html:not(.js) .tab-bar { display: none; }
 .hero-visual { max-width: 500px; }
+/* 灯板是正方形容器：相机的 fitCamera() 按舞台实际宽高比把板子收在画面 83% 内，
+   舞台一旦被改成宽屏，方板子就会掉进宽画布、四周留大片黑。
+   这里曾误加 aspect-ratio: 1.5（demo 控件那轮加的），已删。 */
 .demo-topline { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; color: var(--mut); font-size: 10px; letter-spacing: .06em; }
 .demo-topline > :first-child { color: var(--acc); }
-.led-stage { aspect-ratio: 1.5; }
 .led-stage canvas, .flow-stage canvas { opacity: 0; }
 .has-webgl canvas { opacity: 1; }
 .led-fallback { position: absolute; top: 50%; left: 50%; width: 55%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; padding: 10px; border: 1px solid #424754; border-radius: 5px; background: #0a0c10; transform: translate(-50%, -50%) perspective(700px) rotateY(-14deg) rotateZ(-3deg); box-shadow: 0 20px 50px #0008; }
@@ -1124,6 +1219,32 @@ html:not(.js) .tab-bar { display: none; }
   .pattern-buttons button { padding-inline: 9px; }
 }
 
+/* ── 触控目标 ─────────────────────────────────────────────────
+   小屏上 20px 出头的可点区域很难点准（示例指令 23px、下一个效果 29px、
+   复制 27px、回到顶部 17px、亮度滑杆 16px）。这里把最小边长抬到 30px 以上 ——
+   加的是内边距和最小高度，不动字号，所以视觉尺寸基本不变。
+   正文里的行内链接按 WCAG 2.5.8 的 inline 例外处理，保持行内流。 */
+.brand { min-height: 34px; }
+/* 注意按钮用的是默认 line-height（normal ≈ 1.2），不是 .mono 的 1.7。
+   原来 3px 内边距 → 实测 23px 高；6px → 29px 仍不达标；8px 才是 33px。
+   横向也要给：最短的「关灯」只有 24px 文字宽，2px 内边距时整体仅 28px。 */
+.demo-examples button { padding: 8px 4px; }
+.led-hud button { display: inline-flex; align-items: center; min-height: 32px; }
+.copy { padding: 7px 12px; }
+.demo-adjust input { height: 30px; }
+.to-top { min-height: 32px; }
+.side-index button { padding: 5px 0; }
+
+/* 320px（iPhone SE 一代、小屏安卓）下页头是 brand + head-meta + burger
+   三块加两处 20px 间隙，总宽会超出视口，汉堡按钮被裁掉一截 —— 而 body 上的
+   overflow-x:clip 会把它悄悄切掉，只查 scrollWidth 是发现不了的。
+   这里收紧间隙与内边距，并隐去时钟（纯装饰，版本号保留）。
+   断点取 360 而不是更宽：390/375 实测还有 40px 以上余量，不该白白牺牲时钟。 */
+@media (max-width: 360px) {
+  .site-head { gap: 12px; padding-inline: 16px; }
+  .head-meta #clock { display: none; }
+}
+
 /* ── reduced motion ─────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1134,6 +1255,9 @@ html:not(.js) .tab-bar { display: none; }
     transition-delay: 0s !important;
   }
   html { scroll-behavior: auto; }
+  /* 幕布是纯入场装饰，减少动态效果时整个跳过，别让人白等一秒 */
+  #preloader { display: none !important; }
+  .c-dot, .c-ring { display: none; }
   html.js [data-reveal], html.js [data-load], html.js .ht-line {
     opacity: 1 !important;
     transform: none !important;

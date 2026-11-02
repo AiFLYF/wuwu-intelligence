@@ -13,10 +13,16 @@ const HEART = ['.XX..XX.', 'XXXXXXXX', 'XXXXXXXX', 'XXXXXXXX', '.XXXXXX.', '..XX
 export const PATTERNS = [
   { id: 'solid', name: 'SOLID COLOR', cn: '纯色', fn: () => [1, 0, 0] },
   { id: 'rainbow', name: 'RAINBOW WAVE', cn: '彩虹', fn: (x, y, t) => hsv(x / 7 * .62 + y / 7 * .12 + t * .14, .94, 1) },
+  /* 追逐：彗尾沿蛇形路径跑，尾部做色相偏移（头偏青、尾偏蓝）。
+     原来是 [b*.82, b*.93, b] 的淡蓝白 —— 本身接近白色，再叠上灯芯的无色高光，
+     整片就糊成白点，看不出是 RGB 灯板；而且未点亮的灯珠是纯黑，
+     64 颗里只有约 7 颗亮，整块板像「坏了、只有几个灯能亮」。
+     现在颜色饱和、并给整板留一层微光底（0.16），才像通着电的灯阵。 */
   { id: 'chase', name: 'CHASE', cn: '追逐', fn: (x, y, t) => {
     const k = y * 8 + (y % 2 ? 7 - x : x), head = (t * 13) % 64;
-    const d = Math.abs(k - head), b = Math.max(0, 1 - Math.min(d, 64 - d) / 7);
-    return [b * .82, b * .93, b];
+    const near = Math.min(Math.abs(k - head), 64 - Math.abs(k - head));
+    const b = Math.max(.16, 1 - near / 9);
+    return hsv(.53 + near * .013, .92, 1).map(v => v * b);
   } },
   { id: 'wave', name: 'WAVE', cn: '波浪', fn: (x, y, t) => {
     const b = .1 + .9 * Math.max(0, Math.sin(x * .95 - t * 2.6 + y * .35));
@@ -26,14 +32,19 @@ export const PATTERNS = [
     const b = .12 + .88 * (.5 - .5 * Math.cos(t * 1.5));
     return [b, b * .7, b * .4];
   } },
+  /* 爱心：非心形的格子原来几乎是纯黑（.02/.008/.012），整块板只剩一个红心悬在黑洞里。
+     抬到一层很淡的红底，心形仍是绝对主角。 */
   { id: 'heart', name: 'HEART', cn: '爱心', fn: (x, y, t) => {
-    if (HEART[y][x] !== 'X') return [.02, .008, .012];
+    if (HEART[y][x] !== 'X') return [.055, .012, .022];
     const p = .58 + .42 * Math.sin(t * 3.1);
-    return [p, p * .11, p * .2];
+    return [p, p * .09, p * .16];
   } },
+  /* 闪烁：原来是 [b, b*.88, b] 的淡绿白 + 6 次幂，绝大多数灯接近全黑、亮的又发白。
+     改成暖金/琥珀的碎灯串，并留 0.12 底光。 */
   { id: 'sparkle', name: 'SPARKLE', cn: '闪烁', fn: (x, y, t) => {
-    const b = Math.pow(.5 + .5 * Math.sin(t * 1.7 + (y * 8 + x) * 2.399), 6);
-    return [b, b * .88, b];
+    const seed = (y * 8 + x) * 2.399;
+    const b = Math.pow(.5 + .5 * Math.sin(t * 1.7 + seed), 6);
+    return hsv(.08 + .07 * Math.sin(seed * 2.1), .88, 1).map(v => v * (.12 + .88 * b));
   } },
 ];
 

@@ -5,8 +5,17 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
-document.documentElement.classList.add('js');
-document.body.classList.add('is-loaded');
+/* 告诉 index.html 的兜底脚本「模块已经跑起来了」——从这一刻起幕布只听这里的。
+   注意：html.js 由 <head> 里那段同步挂上（首帧就盖幕布，不会先闪正文），
+   所以这里不再重复挂。
+   如果 head 的兜底已经把 .js 摘掉（app.js 加载被判超时），页面已退回静态态，
+   别再挂幕布、别再放动画。 */
+window.__wuwuBoot = true;
+const booted = document.documentElement.classList.contains('js');
+
+/* 兜底：动画本该自己停，但万一中途卡住，1.8s 后无论如何都摘幕布。
+   旧版这个上限是 50s，慢网络下用户要对着幕布干等。 */
+setTimeout(() => document.body.classList.add('is-loaded'), 1800);
 
 const clock = $('#clock');
 const timeFormat = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -15,6 +24,11 @@ function tickClock() {
 }
 tickClock();
 setInterval(tickClock, 1000);
+
+/* 刷新后别停在半路；但带 #锚点 分享出去的链接要尊重锚点 */
+history.scrollRestoration = 'manual';
+const hashEl = location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
+if (!hashEl) scrollTo(0, 0);
 
 $$('.led-mini').forEach(box => {
   const fragment = document.createDocumentFragment();
@@ -45,6 +59,12 @@ if ('IntersectionObserver' in window) {
     });
   }, { threshold: .08 });
   $$('[data-reveal]').forEach(element => reveal.observe(element));
+  // 兜底：观察器在某些环境里就是不上报，别让内容永远停在透明状态
+  setTimeout(() => {
+    $$('[data-reveal]:not(.in-view)').forEach(element => {
+      if (element.getBoundingClientRect().top < innerHeight) element.classList.add('in-view');
+    });
+  }, 4000);
 } else {
   $$('[data-reveal]').forEach(element => element.classList.add('in-view'));
 }
@@ -190,6 +210,68 @@ $$('.copy').forEach(button => {
     timer = setTimeout(() => { button.textContent = original; button.classList.remove('done'); }, 2000);
   });
 });
+
+/* ── 开场幕布 ──────────────────────────────────────────────────
+   动画本体在 index.html 的内联脚本里：一道亮带先循环扫（等待期板子是活的），
+   这里只管发信号让它改成「单向扫 + 锁定」，计数与进度条由它同步推进。
+   好处是等待期和就绪后是同一条动画，不会有 CSS→JS 交接时的齐刷刷跳变。
+   刻意不等 three.js：灯板在 demo-controller 里懒加载，幕布绝不阻塞可读内容。 */
+
+function finishLoad() {
+  document.body.classList.add('is-loaded');
+  measure();
+  // 字体就位会改变文字高度，锚点位置在加载后再校正一次
+  if (hashEl) requestAnimationFrame(() => hashEl.scrollIntoView({ behavior: 'auto', block: 'start' }));
+}
+
+// 降级态（head 兜底已摘掉 .js）或「减少动态效果」时不挂幕布、不放动画：
+// CSS 里 #preloader 在这两种情况下都是 display:none，直接进就绪态即可。
+if (!booted || motion.matches) finishLoad();
+else if (typeof window.__preloaderRun === 'function') window.__preloaderRun(finishLoad);
+else finishLoad();   // 内联脚本没跑到（极端情况），别把幕布挂在那儿
+
+/* ── 自定义光标 ────────────────────────────────────────────────
+   细指针且未开启「减少动态效果」时才启用；灯芯紧跟、外环阻尼滞后。
+   指针停稳后自动停帧，不常驻一个 rAF。 */
+
+const dotEl = $('.c-dot');
+const ringEl = $('.c-ring');
+const cursor = { x: 0, y: 0, dx: 0, dy: 0, rx: 0, ry: 0, on: false, last: 0, frame: 0 };
+
+if (dotEl && ringEl && matchMedia('(pointer: fine)').matches && !motion.matches) {
+  const damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
+  function cursorTick(now) {
+    cursor.frame = 0;
+    const dt = Math.min((now - cursor.last) / 1000, 0.05);
+    cursor.last = now;
+    cursor.dx = damp(cursor.dx, cursor.x, 30, dt);
+    cursor.dy = damp(cursor.dy, cursor.y, 30, dt);
+    cursor.rx = damp(cursor.rx, cursor.x, 13, dt);
+    cursor.ry = damp(cursor.ry, cursor.y, 13, dt);
+    dotEl.style.transform = `translate(${cursor.dx - 3}px, ${cursor.dy - 3}px)`;
+    ringEl.style.transform = `translate(${cursor.rx}px, ${cursor.ry}px) translate(-50%, -50%)`;
+    if (Math.abs(cursor.rx - cursor.x) > 0.2 || Math.abs(cursor.ry - cursor.y) > 0.2) {
+      cursor.frame = requestAnimationFrame(cursorTick);
+    }
+  }
+  addEventListener('pointermove', event => {
+    cursor.x = event.clientX;
+    cursor.y = event.clientY;
+    if (!cursor.on) {
+      cursor.on = true;
+      cursor.dx = cursor.rx = cursor.x;
+      cursor.dy = cursor.ry = cursor.y;
+      document.body.classList.add('cursor-on');
+    }
+    if (!cursor.frame) {
+      cursor.last = performance.now();
+      cursor.frame = requestAnimationFrame(cursorTick);
+    }
+  }, { passive: true });
+  document.addEventListener('mouseover', event => {
+    document.body.dataset.cursor = event.target.closest('a, button, [data-hover]') ? 'hover' : '';
+  });
+}
 
 initDemo();
 measure();

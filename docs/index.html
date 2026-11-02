@@ -23,7 +23,36 @@
   <meta name="twitter:description" content="自然语言硬件工作流 · 含可离线体验的 LED 灯板模拟演示。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%202v20M2%2012h20M4.9%204.9l14.2%2014.2M19.1%204.9L4.9%2019.1'%20stroke='%23C6FF4A'%20stroke-width='2.4'%20stroke-linecap='round'/%3E%3C/svg%3E">
 
-  <script>if (location.protocol === 'file:') document.documentElement.classList.add('is-file');</script>
+  <!-- 开场幕布的开关必须在首帧前挂上。app.js 是 ES module（延迟执行，还要等
+       demo-controller / demo-model 两个依赖），等它来挂 .js 的话，正文会先画
+       出来、再被幕布盖住，闪一下。所以这里同步挂。
+       兜底：万一 app.js 没起来（被拦截 / 加载失败 / 迟迟不到），把 .js 摘掉，
+       整页退回静态呈现（面板全部展开、内容全部可见）。旧版这里是干等 50s。 -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      if (location.protocol === 'file:') { root.classList.add('is-file'); return; }
+      root.classList.add('js');
+      window.__wuwuDegrade = function () {
+        if (window.__wuwuBoot) return;          // app.js 已经跑起来了，交给它
+        window.__wuwuDegraded = true;
+        root.classList.remove('js');
+      };
+      // 快路径：模块加载失败会在 script 元素上冒 error，立刻降级
+      addEventListener('error', function (event) {
+        var target = event.target;
+        if (target && target.tagName === 'SCRIPT') window.__wuwuDegrade();
+      }, true);
+      // 慢路径：等文档 load —— 那时所有子资源（含模块脚本）都已到齐。
+      // 到这会儿 app.js 还没启动，就说明它不是「还在下载」，而是真的没跑起来。
+      // 这样既能兜住慢网络，又不会像固定超时那样把合法等待误判成故障。
+      addEventListener('load', function () {
+        setTimeout(function () { if (!window.__wuwuBoot) window.__wuwuDegrade(); }, 1000);
+      });
+      // 绝对上限：真有资源一直挂着，也不能让用户永远对着幕布（旧版是 50s）
+      setTimeout(window.__wuwuDegrade, 8000);
+    })();
+  </script>
 
   <link rel="stylesheet" href="assets/css/fonts.css">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -40,6 +69,142 @@
 <body>
 
   <a class="skip mono" href="#content">跳到正文 ↓</a>
+
+  <!-- ── 开场幕布 ────────────────────────────────────────────────
+       纯装饰的入场动画：数字计数 + 64 点蛇形填充 + 进度条。
+       刻意做成「短时自终止」——固定约 1s 走完，另有硬上限兜底，
+       绝不等 three.js（灯板是懒加载的），因此不会拖慢可读可点。
+       走完立刻摘幕布并给 body 挂 is-loaded，首屏入场动效随之开始。 -->
+  <div id="preloader" aria-hidden="true">
+    <div class="pre-top mono">
+      <span>WUWU® INTELLIGENCE</span>
+      <span>界面初始化 / BOOTING INTERFACE</span>
+    </div>
+    <div class="pre-mid">
+      <div class="pre-count"><span id="preCount">00</span><em>%</em></div>
+      <!-- 64 颗灯珠由脚本生成。曾手写 64 个 <i>，结果漏了 3 个 —— 最后一行右侧
+           3 颗在 DOM 里根本不存在，进度到 100% 也点不亮，且没有任何报错。 -->
+      <div class="pre-grid" id="preGrid"></div>
+    </div>
+    <div class="pre-bar"><span id="preBar"></span></div>
+  </div>
+  <script>
+    /* ============================================================
+       开幕布动画 —— 自始至终只有「一道亮带」
+       ------------------------------------------------------------
+       等待期：亮带沿蛇形路径循环扫过，板子一直是活的，不是死板占位；
+       app.js 就绪后：同一道亮带改为单向扫过，并把扫过的灯珠「锁定」成全亮，
+       同时计数与进度条按同一条缓动推进。三者共用一个进度，节奏才对得上。
+       每颗灯的亮度做阻尼跟随，所以等待期 → 就绪后的切换肉眼不可见。
+       （旧版是 CSS 8 行错峰呼吸 + JS 蛇形填充两套动画，交接时 64 颗灯
+         瞬间齐掉到 0.12 再重新点亮，看着很乱。）
+       ============================================================ */
+    (function () {
+      var grid = document.getElementById('preGrid');
+      var root = document.documentElement;
+      if (!grid) return;
+
+      var countEl = document.getElementById('preCount');
+      var barEl = document.getElementById('preBar');
+      var N = 64;
+      var fragment = document.createDocumentFragment();
+      for (var i = 0; i < N; i++) fragment.appendChild(document.createElement('i'));
+      grid.appendChild(fragment);
+      var dots = [].slice.call(grid.children);
+
+      // 灯珠节点无条件生成（数量是回归断言要查的）；只有「该跳过动画」的特殊
+      // 情况才不放动画：file:// 直开和「减少动态效果」下幕布在 CSS 里也是
+      // display:none， dots 留着不动即可，app.js 仍会正常进就绪态。
+      var animate = !root.classList.contains('is-file') && !(
+        window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+      if (!animate) {
+        window.__preloaderRun = function (done) { if (done) done(); };
+        return;
+      }
+      /* 起始亮度取熄灭态 0.09（和 CSS 里 opacity:0.1 一致），别从 0 起跳，
+         否则第一帧会「嘭」一下亮起来。 */
+      var cur = new Float32Array(N).fill(0.09);   // 每颗灯当前亮度，阻尼跟随保证无缝
+
+      var HEAD = 2.2, TAIL = 16;              // 亮带头宽度 / 尾迹长度（单位：颗）
+      var IDLE_SPEED = N / 2.1;               // 等待期 2.1s 扫完一整遍，节奏放慢
+      var RUN_MS = 1150;                      // 就绪后 1.15s 走完并全部锁定
+
+      /* 蛇形序号：和 3D 灯板的 CHASE 效果走同一条路径，视觉上是一家的 */
+      function snake(i) {
+        var row = Math.floor(i / 8);
+        return row % 2 ? row * 8 + (7 - (i % 8)) : i;
+      }
+      /* 亮带头部 + 向后衰减的尾迹。未锁定的灯珠靠它保持微亮，不至于死黑 */
+      function tail(k, head) {
+        var d = k - head;
+        if (d < 0) d += N;                    // 环形：等待期才能一圈圈循环
+        if (d < HEAD) return 1;               // 亮带头：一小段全亮，扫读感才明确
+        var e = 1 - (d - HEAD) / TAIL;
+        if (e <= 0) return 0.09;
+        return 0.09 + 0.42 * e * e;
+      }
+
+      var phase = 'idle';
+      var head = 0, last = 0, runStart = 0;
+
+      function frame(now) {
+        /* 兜底降级后 head 会把 .js 摘掉、幕布变 display:none，
+           这时别再白跑 rAF（app.js 被拦死的场景就会走到这）。 */
+        if (!root.classList.contains('js')) return;
+        /* 首帧 dt 取 1/60：rAF 时间戳的基准容易错位，按时间戳算可能得到
+           负值或很大的步长，都会让第一帧「嘭」一下或反向冲出负亮度。 */
+        var dt = last ? Math.max(0, Math.min(0.05, (now - last) / 1000)) : 1 / 60;
+        last = now;
+        var p = 1, eased = 1, i, k;
+
+        if (phase === 'idle') {
+          /* 等待期只是循环装饰，用夹过的 dt 累加即可 ——
+             夹住是为了切回前台时别一下跳过大半圈。 */
+          head += IDLE_SPEED * dt;
+          if (head >= N) head -= N;
+        } else {
+          /* 收尾阶段必须按「墙钟」推进，不能累加每帧 dt。
+             主线程会被 3D 灯板初始化阻塞（实测出现过 700ms+ 的单帧），
+             帧率一掉，累加式就把 1.15s 的收尾拖成好几秒 —— 大屏上真的会
+             卡在 99% 一两秒，观感像卡死。runStart 在切进 run 后的第一帧才取，
+             保证进度从 0 起。 */
+          if (!runStart) runStart = now;
+          p = Math.min(1, (now - runStart) / RUN_MS);
+          head = p * N;
+          eased = 1 - Math.pow(1 - p, 3);      // 与锁定进度同一条缓动
+          if (countEl) countEl.textContent = String(Math.floor(eased * 100)).padStart(2, '0');
+          if (barEl) barEl.style.transform = 'scaleX(' + eased.toFixed(4) + ')';
+          if (p >= 1) {
+            for (i = 0; i < N; i++) dots[i].style.opacity = '1';
+            document.body.classList.add('is-loaded');
+            if (done) done();
+            return;                            // 走完就停帧，不留常驻 rAF
+          }
+        }
+
+        var lam = 1 - Math.exp(-14 * dt);      // 阻尼系数
+        for (i = 0; i < N; i++) {
+          k = snake(i);
+          var target = phase === 'run' && k < head ? 1 : tail(k, head);
+          cur[i] += (target - cur[i]) * lam;
+          dots[i].style.opacity = cur[i].toFixed(3);
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
+      /* app.js 就绪后调用：从当前亮带位置无缝切到「单向锁定」模式。
+         done 在全部锁定、计数到 100 之后回调（app.js 用它做 measure 和锚点校正）。 */
+      var done = null;
+      window.__preloaderRun = function (onDone) {
+        if (phase !== 'idle') return;
+        done = onDone || null;
+        phase = 'run';
+        head = 0;                              // 重新起扫；阻尼会把高处亮度平滑压回
+        runStart = 0;                          // 下一帧才记起点，进度严格从 0 开始
+      };
+    })();
+  </script>
 
   <!-- ── Ambient layers ──────────────────────────────────────── -->
   <div class="bg-grid" aria-hidden="true"></div>
@@ -163,8 +328,10 @@
             </div>
             <div class="demo-adjust">
               <label for="demoBrightness">亮度</label>
-              <input type="range" id="demoBrightness" min="0" max="255" value="128" step="1">
-              <output for="demoBrightness" id="brightnessValue">128 / 255</output>
+              <!-- 默认 200 而不是滑杆中点：首屏这块灯板是主视觉，
+                   一半亮度下灯珠发辫、明显发灰，不像点亮的 WS2812B -->
+              <input type="range" id="demoBrightness" min="0" max="255" value="200" step="1">
+              <output for="demoBrightness" id="brightnessValue">200 / 255</output>
             </div>
             <div class="demo-playback">
               <button type="button" id="demoPause" aria-pressed="false">暂停动画</button>
@@ -559,6 +726,10 @@
   </main>
 
   <p id="copyStatus" class="sr-only" role="status"></p>
+
+  <!-- 自定义光标：细指针 + 未开启「减少动态效果」时才由 app.js 激活 -->
+  <div class="c-dot" aria-hidden="true"></div>
+  <div class="c-ring" aria-hidden="true"></div>
 
   <!-- file:// 直开时的降级提示 -->
   <div class="file-note mono" role="note">
