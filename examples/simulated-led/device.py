@@ -80,7 +80,10 @@ class Handler(socketserver.StreamRequestHandler):
                     continue
                 response = self.server.dispatch(request)
                 if request.get("cmd") == "delayed_increment" and response["ok"]:
-                    time.sleep(5)  # Apply once, then delay the acknowledgement.
+                    # 动作已生效、回执迟到。窗口要宽到能容纳验收端
+                    # 「外层工具超时」+ 高负载机器上嵌套 Python 的启动时间，
+                    # 否则验收端会在命令到达设备之前就先超时。
+                    time.sleep(10)
                 if request.get("cmd") == "malformed":
                     self.connection.sendall(b"not-json\n")
                     continue

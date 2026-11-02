@@ -61,7 +61,12 @@ def example_device(project, port):
             "desc": description,
             "argv": ["{python}", "cli.py", "--port", str(port), "--timeout", "8", name, *tail],
             "args": arguments, "read_only": read_only, "idempotent": idempotent,
-            "timeout": 1.5 if name == "delayed_increment" else 12,
+            # 超时要卡在「嵌套 Python 启动 + 建连发令」与「设备 10s 延迟回执」
+            # 之间。设备回执曾只有 5s、这里 1.5s：高负载机器上嵌套 Python 启动
+            # 就要 3s 左右，子进程还没连上设备就被杀，计数器是 0，会把
+            # 「从未到达设备」误判成「重复执行」。8s 给启动留足余量，又仍在
+            # 设备的 10s 回执之前触发超时路径。
+            "timeout": 8 if name == "delayed_increment" else 12,
         }
     return {"name": "sim_led", "aliases": ["模拟灯板"], "description": "本机 TCP 软件模拟设备",
             "project_path": str(project), "control": {"cli": "cli.py", "transport": f"tcp:{port}"},

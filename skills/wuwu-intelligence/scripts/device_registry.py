@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+import random
 import re
 import shutil
 import stat
@@ -88,13 +89,32 @@ def load_registry(path):
     return read_snapshot(path)[0]
 
 
+def lock_timeout():
+    """Lock wait budget in seconds; WUWU_LOCK_TIMEOUT can widen it under load."""
+    configured = os.environ.get("WUWU_LOCK_TIMEOUT")
+    if configured:
+        try:
+            value = float(configured)
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    return 5.0
+
+
 @contextmanager
-def registry_lock(path, timeout=5):
+def registry_lock(path, timeout=None):
     """An OS lock survives neither normal exit nor a crashed writer.
 
     Keep the sidecar inode: unlinking it after release can create two locks
     for one registry when another process is already waiting on the old file.
+
+    Contenders back off exponentially with jitter: under load (virus scanner,
+    several writers at once) a fixed 50ms poll both thrashes and can exhaust a
+    short budget before a fair turn arrives.
     """
+    if timeout is None:
+        timeout = lock_timeout()
     path = Path(path).expanduser().resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.with_name(path.name + ".lock").open("a+b") as stream:
@@ -102,6 +122,7 @@ def registry_lock(path, timeout=5):
             stream.write(b"\0")
             stream.flush()
         deadline = time.monotonic() + timeout
+        interval = 0.05
         while True:
             try:
                 if os.name == "nt":
@@ -117,7 +138,8 @@ def registry_lock(path, timeout=5):
                     raise
                 if time.monotonic() >= deadline:
                     raise RegistryConflict("注册表正被另一进程修改，请稍后重新读取并重试") from exc
-                time.sleep(.05)
+                time.sleep(interval * random.uniform(0.5, 1.5))
+                interval = min(interval * 2, 0.4)
         yield  # Closing the descriptor releases the kernel lock on both OSes.
 
 

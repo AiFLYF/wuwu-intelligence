@@ -3,6 +3,7 @@ import hashlib
 import importlib.util
 import itertools
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -49,9 +50,12 @@ class RegistryEditingTests(unittest.TestCase):
         path.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
         return path
 
-    def launch(self, *arguments):
+    def launch(self, *arguments, env=None):
+        environment = None
+        if env:
+            environment = {**os.environ, **env}
         process = subprocess.Popen([sys.executable, str(SCRIPT), '--registry', str(self.path), *arguments],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environment)
         self.addCleanup(self.cleanup_process, process)
         return process
 
@@ -249,10 +253,16 @@ class RegistryEditingTests(unittest.TestCase):
         self.assertEqual(list(self.folder.glob('*.tmp')), [])
 
     def test_six_real_processes_can_register_without_lost_devices(self):
-        processes = [self.launch('register', '--file', str(self.file(f'{i}.json', self.definition(f'device-{i}'))))
+        # 高负载机器上 6 个进程抢同一把锁，默认 5s 预算可能不够（见过 Errno 13
+        # 偶发失败）；这里放大等待预算，验证的是「不丢设备」而不是「抢锁多快」。
+        budget = {'WUWU_LOCK_TIMEOUT': '30'}
+        processes = [self.launch('register', '--file', str(self.file(f'{i}.json', self.definition(f'device-{i}'))),
+                                 env=budget)
                      for i in range(6)]
         for process in processes:
-            stdout, stderr = process.communicate(timeout=20)
+            # communicate 的上限必须大于锁预算 30s，否则慢机器上是 join 先超时，
+            # 测试错误地把「还在排队等锁」当成失败
+            stdout, stderr = process.communicate(timeout=45)
             self.assertEqual(process.returncode, 0, stderr.decode('utf-8'))
             self.assertEqual(json.loads(stdout.decode('utf-8'))['status'], 'registered')
         names = {d['name'] for d in registry.load_registry(self.path)['devices']}
@@ -267,6 +277,16 @@ class RegistryEditingTests(unittest.TestCase):
         failure = next(output for p, output in results if p.returncode == 2)
         self.assertIn('E_CONFLICT', failure[1].decode('utf-8'))
         self.assertIn(self.snapshot()['device']['description'], ['0', '1'])
+
+    def test_lock_timeout_reads_environment_and_rejects_bad_values(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('WUWU_LOCK_TIMEOUT', None)
+            self.assertEqual(registry.lock_timeout(), 5.0)
+        with patch.dict(os.environ, {'WUWU_LOCK_TIMEOUT': '30'}):
+            self.assertEqual(registry.lock_timeout(), 30.0)
+        for bad in ('abc', '-1', '0'):
+            with patch.dict(os.environ, {'WUWU_LOCK_TIMEOUT': bad}):
+                self.assertEqual(registry.lock_timeout(), 5.0)
 
     def test_kernel_lock_is_released_when_a_writer_is_terminated(self):
         ready = self.folder / 'ready'
