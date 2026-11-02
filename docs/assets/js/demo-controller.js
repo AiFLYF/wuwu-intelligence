@@ -14,6 +14,73 @@ export function initDemo() {
   let elapsed = 0, held = 0, last = performance.now(), frameId = 0, dirty = true, lastFallback = 0;
   const buttons = [];
 
+  /* ── 反馈小组件：class 重触发动画 + 模拟收发指示 + 错误建议 ──
+     reduced-motion 下不挂动画 class（CSS 全局也会压成 0.01ms，双保险），
+     但文字内容照常更新 —— 信息不缺席，只是不动。 */
+
+  function replayClass(el, cls) {
+    if (motion.matches) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;               // 强制回流，让同名 class 重新触发动画
+    el.classList.add(cls);
+  }
+
+  /* 文字变化才播微入场；同文重设（如同步滑杆）不闪 */
+  function swapText(el, text) {
+    if (el.textContent === text) return;
+    el.textContent = text;
+    replayClass(el, 'swap');
+  }
+
+  const linkBox = $('#demoLink');
+  const linkText = $('#demoLinkText');
+  function pingLink(result) {
+    if (!linkBox) return;
+    // 「会发出」的字节数取自真实 payload 序列化，不是编的；全程标注模拟
+    const bytes = new TextEncoder().encode(JSON.stringify(result.payload)).length;
+    linkText.textContent = `TX ${bytes}B → RX ok · 模拟`;
+    replayClass(linkBox, 'ping');
+  }
+
+  const suggest = $('#demoSuggest');
+  function showSuggestions(show) {
+    if (!suggest) return;
+    if (!show) { suggest.hidden = true; return; }
+    suggest.textContent = '';
+    const label = document.createElement('span');
+    label.textContent = '试试：';
+    suggest.appendChild(label);
+    ['设成蓝色', '显示爱心', '亮度120'].forEach(text => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = text;
+      // 与上方示例指令的可访问名区分开，避免同名按钮歧义
+      button.setAttribute('aria-label', `填入并预览：${text}`);
+      button.addEventListener('click', () => {
+        $('#demoCommand').value = text;
+        applyCommand(parseDemoCommand(text, state.brightness));
+      });
+      suggest.appendChild(button);
+    });
+    suggest.hidden = false;
+  }
+
+  /* 快捷键：「/」从页面任意处聚焦指令输入（GitHub 风格），输入框里 Esc 退出。
+     不抢输入控件、组合键和移动菜单打开时的按键。 */
+  document.addEventListener('keydown', event => {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (document.body.classList.contains('menu-open')) return;
+    const target = event.target;
+    if (target && target.closest('input, textarea, select, [contenteditable]')) return;
+    const input = $('#demoCommand');
+    event.preventDefault();
+    input.focus();
+    input.select();
+  });
+  $('#demoCommand').addEventListener('keydown', event => {
+    if (event.key === 'Escape') event.target.blur();
+  });
+
   function requestFrame() {
     if (!frameId && !document.hidden) frameId = requestAnimationFrame(frame);
   }
@@ -22,7 +89,7 @@ export function initDemo() {
   function syncState() {
     const reduced = motion.matches;
     document.body.classList.toggle('motion-paused', !state.playing || reduced);
-    $('#ledPattern').textContent = `${PATTERNS[state.pattern].cn} / ${PATTERNS[state.pattern].name}`;
+    swapText($('#ledPattern'), `${PATTERNS[state.pattern].cn} / ${PATTERNS[state.pattern].name}`);
     buttons.forEach((button, index) => {
       button.classList.toggle('on', index === state.pattern);
       button.setAttribute('aria-pressed', String(index === state.pattern));
@@ -47,16 +114,21 @@ export function initDemo() {
 
   function applyCommand(result, manual = true) {
     const input = $('#demoCommand');
+    const status = $('#demoStatus');
     input.setAttribute('aria-invalid', String(!result.ok));
     if (!result.ok) {
-      $('#demoStatus').textContent = result.message;
-      $('#demoStatus').classList.add('is-error');
+      swapText(status, result.message);
+      status.classList.add('is-error');
+      replayClass(input, 'shake');
+      showSuggestions(true);
       return;
     }
-    $('#demoStatus').classList.remove('is-error');
+    status.classList.remove('is-error');
+    showSuggestions(false);
     if (manual) {
       state.autoplay = false;
-      $('#demoStatus').textContent = `${result.message}。仅作用于此页面。`;
+      swapText(status, `${result.message}。仅作用于此页面。`);
+      pingLink(result);
     }
     for (const key of ['pattern', 'color', 'brightness']) {
       if (result[key] !== undefined) state[key] = result[key];

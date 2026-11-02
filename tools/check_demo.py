@@ -23,6 +23,17 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+class QuietServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, _request, _client_address):
+        # 浏览器中止 keep-alive 连接（跳到下一页、context 关闭）会让服务端在
+        # sendall 时收到 ConnectionAbortedError/ConnectionResetError。这是正常
+        # 行为，不是检查结果；默认 handle_error 会把整段堆栈打进 CI 日志。
+        if sys.exc_info()[0] not in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            super().handle_error(_request, _client_address)
+
+
 def ready(page, url):
     page.goto(url, wait_until='domcontentloaded')
     expect(page.locator('#ledDots button')).to_have_count(7)
@@ -46,6 +57,20 @@ def check_desktop(browser, url, output):
     page.locator('#demoForm button').click()
     expect(page.locator('#demoCommand')).to_have_attribute('aria-invalid', 'true')
     expect(page.locator('#code-demo')).to_have_text('python pc/led_cli.py color 0 0 255')
+    # 非法指令的完整反馈链：输入框抖动、给出可点的修正建议
+    assert page.evaluate("document.getElementById('demoCommand').classList.contains('shake')")
+    expect(page.locator('#demoSuggest')).to_be_visible()
+    page.get_by_role('button', name='填入并预览：显示爱心').click()
+    expect(page.locator('#code-demo')).to_have_text('python pc/led_cli.py heart')
+    expect(page.locator('#demoSuggest')).to_be_hidden()
+    # 模拟回环指示：成功命令给出「会发出」的字节数，且始终标注模拟
+    expect(page.locator('#demoLinkText')).to_contain_text('TX ')
+    assert '模拟' in page.locator('#demoLinkText').text_content()
+    # 「/」从任意处聚焦指令输入，Esc 退出（焦点不丢到 body 之外）
+    page.keyboard.press('/')
+    expect(page.locator('#demoCommand')).to_be_focused()
+    page.keyboard.press('Escape')
+    assert page.evaluate("document.activeElement.id") != 'demoCommand'
     page.get_by_role('button', name='显示爱心', exact=True).click()
     page.locator('#demoPause').click()
     expect(page.locator('#demoPause')).to_have_text('继续动画')
@@ -279,6 +304,12 @@ def check_reduced_motion(browser, url):
     before = page.evaluate('window.testFrameCount')
     page.wait_for_timeout(500)
     assert page.evaluate('window.testFrameCount') - before <= 2, 'Reduced motion must not render continuously'
+    # 减少动态效果时，非法指令只给状态文字，不挂抖动动画 class
+    page.locator('#demoCommand').fill('开门')
+    page.locator('#demoForm button').click()
+    expect(page.locator('#demoCommand')).to_have_attribute('aria-invalid', 'true')
+    assert not page.evaluate("document.getElementById('demoCommand').classList.contains('shake')"), \
+        'Reduced motion must not play the shake animation'
     page.get_by_role('button', name='显示爱心', exact=True).click()
     expect(page.locator('#code-demo')).to_contain_text('heart')
     page.emulate_media(reduced_motion='no-preference')
@@ -286,7 +317,70 @@ def check_reduced_motion(browser, url):
     context.close()
 
 
-def check_manual_template(browser, url, output):
+def check_contrast(browser, url):
+    """正文/辅助文字对比度必须过 WCAG AA（4.5:1），章节强调色过非文本 3:1。
+
+    颜色令牌注释里写着「约 5.8:1」「约 4.7:1」——那是设计时的静态推算，
+    改色板、改底色时没人会重算。这里在真实渲染里逐元素量：
+    文本色取计算样式，背景沿祖先链向上合成（半透明层叠到 html 底色上）。
+    站点只有深色主题（color-scheme: dark），所以只查这一套。"""
+    context = browser.new_context(viewport={'width': 1440, 'height': 1000}, reduced_motion='reduce')
+    page = context.new_page()
+    ready(page, url)
+    results = page.evaluate("""() => {
+        const parse = text => {
+            const m = text.match(/rgba?\\(([^)]+)\\)/);
+            if (!m) return null;
+            const parts = m[1].split(/[\\s,/]+/).filter(Boolean).map(parseFloat);
+            return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+        };
+        const lum = ({ r, g, b }) => {
+            const f = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+            return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+        };
+        // 把半透明背景逐层叠到 html 底色上，取有效背景亮度
+        const bgOf = el => {
+            let r = 6, g = 6, b = 8;   // html 的 --bg #060608
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) chain.push(e);
+            for (const e of chain.reverse()) {
+                const c = parse(getComputedStyle(e).backgroundColor);
+                if (c && c.a > 0) {
+                    r = c.r * c.a + r * (1 - c.a);
+                    g = c.g * c.a + g * (1 - c.a);
+                    b = c.b * c.a + b * (1 - c.a);
+                }
+            }
+            return lum({ r, g, b });
+        };
+        const ratio = (fg, bg) => (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+        const bad = [];
+        const selectors = ['.hero-sub', '.lede', '.pcard p', '.wf-card p', '.wf-card h4',
+                           '.cmp-a', '.cmp-b', '.code-bar', '.demo-note', '.demo-status',
+                           '.panel-notes li', '.reg-list span', '.demo-suggest', '.kbd',
+                           '.menu-nav a span', '.site-foot', '.flow-cap', '.reg-note'];
+        for (const selector of selectors) {
+            const el = document.querySelector(selector);
+            if (!el) { bad.push(`${selector}: 元素不存在`); continue; }
+            const fg = lum(parse(getComputedStyle(el).color));
+            const value = ratio(fg, bgOf(el));
+            if (value < 4.5) bad.push(`${selector}: ${value.toFixed(2)}:1`);
+        }
+        // 五个章节强调色会轮流成为焦点框颜色（:focus-visible outline），按非文本 3:1 查
+        document.querySelectorAll('[data-acc]').forEach(section => {
+            const hex = section.dataset.acc;
+            const fg = lum({ r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16),
+                             b: parseInt(hex.slice(5, 7), 16) });
+            const value = ratio(fg, bgOf(section.querySelector('.sec-head') || section));
+            if (value < 3) bad.push(`accent ${hex}: ${value.toFixed(2)}:1`);
+        });
+        return bad;
+    }""")
+    assert not results, f'对比度不足：{results}'
+    context.close()
+
+
+def check_manual_template(browser, url, output):
     context = browser.new_context(viewport={'width': 800, 'height': 900}, device_scale_factor=2)
     page = context.new_page()
     errors = []
@@ -331,7 +425,7 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / '.workbuddy/qa')
     options = parser.parse_args()
     options.output.mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietHandler, directory=str(ROOT / 'docs')))
+    server = QuietServer(('127.0.0.1', 0), partial(QuietHandler, directory=str(ROOT / 'docs')))
     worker = Thread(target=server.serve_forever, daemon=True)
     worker.start()
     url = f'http://127.0.0.1:{server.server_port}/'
@@ -350,6 +444,8 @@ def main():
             print('PASS hero alignment', flush=True)
             check_touch_and_narrow(browser, url)
             print('PASS touch targets / narrow header', flush=True)
+            check_contrast(browser, url)
+            print('PASS contrast', flush=True)
             check_manual_template(browser, url, options.output)
             print('PASS manual template', flush=True)
             browser.close()

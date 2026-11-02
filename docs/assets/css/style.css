@@ -31,6 +31,14 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-io:  cubic-bezier(0.83, 0, 0.17, 1);
 
+  /* 过渡时长三档：微反馈 / 常规 UI / 场景级。
+     原来散落着 0.3/0.35/0.4/0.45/0.5/0.55/0.6s 七八种取值，同一次交互里
+     按钮、边框、位移各走各的时长，手感是散的。>0.6s 的入场与主题色迁移
+     （reveal、bg-glow、scroll-bar）保留各自节奏，不归档。 */
+  --dur-1: 0.18s;
+  --dur-2: 0.35s;
+  --dur-3: 0.6s;
+
   --pad: clamp(20px, 4.2vw, 68px);
   --maxw: 1560px;
 }
@@ -84,7 +92,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   background: var(--ink);
   color: #0a0a0a;
   transform: translateY(-220%);
-  transition: transform 0.3s var(--ease-out);
+  transition: transform var(--dur-2) var(--ease-out);
 }
 .skip:focus { transform: none; }
 #content:focus { outline: none; }
@@ -302,7 +310,7 @@ html.js body.is-loaded .site-head { opacity: 1; transform: none; }
   gap: 6px;
   padding: 4px 0;
   color: var(--mut);
-  transition: color 0.35s;
+  transition: color var(--dur-2);
 }
 .site-nav a i { font-style: normal; font-size: 9px; opacity: 0.55; }
 .site-nav a::after {
@@ -313,7 +321,7 @@ html.js body.is-loaded .site-head { opacity: 1; transform: none; }
   background: currentColor;
   transform: scaleX(0);
   transform-origin: right center;
-  transition: transform 0.45s var(--ease-out);
+  transition: transform var(--dur-2) var(--ease-out);
 }
 .site-nav a:hover, .site-nav a.active { color: var(--ink); }
 .site-nav a:hover::after, .site-nav a.active::after { transform: scaleX(1); transform-origin: left center; }
@@ -335,7 +343,7 @@ html.js body.is-loaded .site-head { opacity: 1; transform: none; }
 .burger span {
   position: absolute; left: 6px; right: 6px; height: 1.5px;
   background: var(--ink);
-  transition: transform 0.4s var(--ease-out), opacity 0.3s;
+  transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-2);
 }
 .burger span:first-child { top: 13px; }
 .burger span:last-child { top: 20px; }
@@ -398,12 +406,12 @@ html.js body.is-loaded .side-index { opacity: 1; }
   font-size: 10px;
   letter-spacing: 0.14em;
   color: var(--mut-2);
-  transition: color 0.35s;
+  transition: color var(--dur-2);
 }
 .side-index .si-label {
   opacity: 0;
   transform: translateX(6px);
-  transition: opacity 0.35s, transform 0.35s var(--ease-out);
+  transition: opacity var(--dur-2), transform var(--dur-2) var(--ease-out);
 }
 .side-index button:hover .si-label,
 .side-index button.active .si-label,
@@ -577,12 +585,15 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   text-transform: uppercase;
   color: var(--ink);
   background: transparent;
-  transition: background 0.4s var(--ease-out), color 0.35s, border-color 0.4s, transform 0.4s var(--ease-out);
+  transition: background var(--dur-2) var(--ease-out), color var(--dur-2), border-color var(--dur-2), transform var(--dur-2) var(--ease-out);
 }
 .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .btn-solid { background: var(--ink); color: #0a0a0a; border-color: var(--ink); }
 .btn-solid:hover { background: var(--acc); border-color: var(--acc); color: #0a0a0a; transform: translateY(-3px); }
 .btn-ghost:hover { border-color: var(--acc); color: var(--acc); transform: translateY(-3px); }
+/* 按压态：hover 是浮起 -3px，按下收回到 -1px —— 有「按下去」的行程感。
+   transition 走 --dur-1 微反馈档，松手回弹仍走 --dur-2。 */
+.btn:active { transform: translateY(-1px); transition-duration: var(--dur-1); }
 
 /* hero visual — the 8×8 LED panel */
 
@@ -625,7 +636,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   margin-top: 14px;
   color: var(--mut);
 }
-.led-pat { color: var(--ink); transition: color 0.4s; }
+.led-pat { color: var(--ink); transition: color var(--dur-2); }
 .hero-strip {
   display: flex;
   flex-wrap: wrap;
@@ -659,7 +670,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   background: var(--acc);
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform 0.6s var(--ease-out);
+  transition: transform var(--dur-3) var(--ease-out);
 }
 .pcard:hover::before { transform: scaleX(1); }
 .pcard-i { color: var(--acc); display: block; margin-bottom: 22px; }
@@ -741,7 +752,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   padding: clamp(20px, 2.2vw, 30px);
   background: var(--bg-2);
   overflow: hidden;
-  transition: background 0.5s var(--ease-out);
+  transition: background var(--dur-3) var(--ease-out);
 }
 .wf-card:nth-child(4), .wf-card:nth-child(5) { grid-column: span 3; }
 .wf-card::after {
@@ -750,7 +761,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   inset: 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--led) 7%, transparent), transparent 58%);
   opacity: 0;
-  transition: opacity 0.55s var(--ease-out);
+  transition: opacity var(--dur-3) var(--ease-out);
   pointer-events: none;
 }
 .wf-card:hover { background: var(--bg-3); }
@@ -794,9 +805,9 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   border-top: 1px solid var(--line);
   padding-top: 12px;
   margin-top: 12px;
-  transition: color 0.35s;
+  transition: color var(--dur-2);
 }
-.wf-link i { font-style: normal; transition: transform 0.4s var(--ease-out); }
+.wf-link i { font-style: normal; transition: transform var(--dur-2) var(--ease-out); }
 .wf-card:hover .wf-link { color: var(--led); }
 .wf-card:hover .wf-link i { transform: translate(3px, -3px); }
 
@@ -856,13 +867,13 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   border: 1px solid var(--line);
   border-top: none;
   background: var(--bg-2);
-  transition: background 0.5s var(--ease-out), border-color 0.5s;
+  transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2);
 }
 .wf-wide:hover { background: var(--bg-3); border-color: var(--line-2); }
 .wf-wide-k { color: var(--acc); font-size: 10px; }
 .wf-wide-t b { display: block; font-family: var(--disp); font-weight: 600; font-size: clamp(1.05rem, 1.7vw, 1.5rem); letter-spacing: 0.01em; }
 .wf-wide-t em { display: block; font-style: normal; color: var(--mut); font-size: 13px; line-height: 1.8; margin-top: 8px; max-width: 90ch; }
-.wf-wide-a { color: var(--mut-2); font-size: 16px; transition: transform 0.4s var(--ease-out), color 0.35s; }
+.wf-wide-a { color: var(--mut-2); font-size: 16px; transition: transform var(--dur-2) var(--ease-out), color var(--dur-2); }
 .wf-wide:hover .wf-wide-a { transform: translate(4px, -4px); color: var(--ink); }
 
 /* ── registry ───────────────────────────────────────────────── */
@@ -905,10 +916,11 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   border: 1px solid var(--line-2);
   border-radius: 999px;
   padding: 4px 12px;
-  transition: color 0.3s, border-color 0.3s, background 0.3s;
+  transition: color var(--dur-1), border-color var(--dur-1), background var(--dur-1);
 }
 .copy:hover { color: var(--ink); border-color: var(--acc); }
 .copy.done { color: #0a0a0a; background: var(--acc); border-color: var(--acc); }
+.copy:active { transform: translateY(1px); }
 
 .code {
   font-family: var(--mono);
@@ -994,10 +1006,11 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--mut);
-  transition: color 0.35s, background 0.35s;
+  transition: color var(--dur-2), background var(--dur-2);
 }
 .tab i { font-style: normal; font-size: 9px; opacity: 0.6; }
 .tab:hover { color: var(--ink); background: rgba(244, 241, 234, 0.02); }
+.tab:active { background: rgba(244, 241, 234, 0.05); }
 .tab.is-on { color: var(--ink); }
 .tab.is-on::after {
   content: "";
@@ -1048,7 +1061,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   font-size: 10px;
 }
 .to-top { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--ink); }
-.to-top i { font-style: normal; color: var(--acc); transition: transform 0.35s var(--ease-out); }
+.to-top i { font-style: normal; color: var(--acc); transition: transform var(--dur-2) var(--ease-out); }
 .to-top:hover i { transform: translateY(-4px); }
 
 /* ── cursor ─────────────────────────────────────────────────── */
@@ -1066,7 +1079,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .c-ring {
   width: 34px; height: 34px;
   border: 1px solid rgba(244, 241, 234, 0.6);
-  transition: width 0.35s var(--ease-out), height 0.35s var(--ease-out), border-color 0.35s;
+  transition: width var(--dur-2) var(--ease-out), height var(--dur-2) var(--ease-out), border-color var(--dur-2);
 }
 body[data-cursor="hover"] .c-ring { width: 58px; height: 58px; border-color: rgba(244, 241, 234, 0.95); }
 body.cursor-on .c-dot, body.cursor-on .c-ring { opacity: 1; }
@@ -1182,8 +1195,9 @@ html:not(.js) .tab-bar { display: none; }
 .led-hud button { color: var(--mut); padding: 6px 0 6px 8px; }
 .demo-note { color: var(--mut); font-size: 12px; line-height: 1.65; margin: 9px 0 12px; }
 .pattern-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
-.pattern-buttons button, .demo-playback button { border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 11px; font-size: 12px; color: var(--mut); min-height: 34px; }
+.pattern-buttons button, .demo-playback button { border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 11px; font-size: 12px; color: var(--mut); min-height: 34px; transition: color var(--dur-1), border-color var(--dur-1), background var(--dur-1), transform var(--dur-1); }
 .pattern-buttons button:hover, .pattern-buttons button.on, .demo-playback button[aria-pressed="true"] { color: var(--ink); border-color: var(--acc); background: var(--acc-soft); }
+.pattern-buttons button:active, .demo-playback button:active, .demo-examples button:active { transform: translateY(1px); }
 #demoForm label { display: block; font-size: 12px; color: var(--ink); margin-bottom: 6px; }
 .demo-input-row { display: flex; gap: 8px; }
 .demo-input-row input { min-width: 0; flex: 1; width: 100%; background: #0b0d12; border: 1px solid var(--line-2); border-radius: 8px; color: var(--ink); font: inherit; font-size: 14px; padding: 11px 12px; }
@@ -1199,6 +1213,43 @@ html:not(.js) .tab-bar { display: none; }
 .demo-playback button:disabled { cursor: default; opacity: .55; }
 .demo-status { min-height: 2.8em; color: var(--mut); font-size: 12px; line-height: 1.5; }
 .demo-status.is-error { color: #ff918a; }
+
+/* ── demo 反馈组件 ──────────────────────────────────────────────
+   模拟收发指示 / 文字切换 / 错误抖动与建议。动画时长全部走令牌，
+   prefers-reduced-motion 由全局规则压到 0.01ms，JS 侧也不再挂 class。 */
+
+/* 模拟回环指示：每次应用命令闪一次，文字给出「会发出」的字节数。
+   全程标注模拟，不暗示存在真实连接。 */
+.demo-link { display: inline-flex; align-items: center; gap: 7px; color: var(--mut-2); transition: color var(--dur-1); }
+.dl-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.demo-link.ping { color: var(--acc); }
+.demo-link.ping .dl-dot { animation: dlPing 0.5s var(--ease-out); }
+@keyframes dlPing {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acc) 65%, transparent); }
+  100% { box-shadow: 0 0 0 9px transparent; }
+}
+
+/* 效果名 / 状态行文字更新时的微入场，重触发由 JS 控制 */
+@keyframes swapIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.led-pat.swap, .demo-status.swap { animation: swapIn var(--dur-2) var(--ease-out); }
+
+/* 非法指令：输入框横向短抖一次；reduced-motion 下 JS 不加 .shake */
+@keyframes shakeX {
+  20% { transform: translateX(-4px); }
+  45% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+}
+.demo-input-row input.shake { animation: shakeX 0.38s var(--ease-out); }
+
+/* 错误后的可点修正建议 */
+.demo-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--mut); }
+.demo-suggest[hidden] { display: none; }
+.demo-suggest button { border: 1px dashed var(--line-2); border-radius: 6px; padding: 6px 10px; min-height: 30px; font-size: 12px; color: var(--mut); transition: color var(--dur-1), border-color var(--dur-1), transform var(--dur-1); }
+.demo-suggest button:hover { color: var(--acc); border-color: var(--acc); }
+.demo-suggest button:active { transform: translateY(1px); }
+
+/* 快捷键提示 */
+.kbd { font-family: var(--mono); font-size: 0.85em; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; color: var(--mut); }
 .demo-terminal { border: 1px solid var(--line); border-radius: 8px; background: #080a0d; overflow: hidden; }
 .demo-terminal .code-bar { padding: 9px 12px; font-size: 10px; }
 .demo-terminal pre { padding: 12px; overflow-x: auto; font: 11px/1.65 var(--mono); color: var(--ink); }

@@ -311,7 +311,7 @@
             <span class="led-pat" id="ledPattern">纯色 / SOLID COLOR</span>
             <button type="button" id="ledNext" class="js-only">下一个效果 →</button>
           </div>
-          <p class="demo-note" id="demoHint">内置指令示例，仅在浏览器模拟；实际设备支持的命令以注册表为准。</p>
+          <p class="demo-note" id="demoHint">内置指令示例，仅在浏览器模拟；实际设备支持的命令以注册表为准。按 <span class="kbd">/</span> 聚焦输入，<span class="kbd">Esc</span> 退出。</p>
           <div class="demo-controls">
             <div class="pattern-buttons" id="ledDots" role="group" aria-label="灯板效果"></div>
             <form id="demoForm">
@@ -338,8 +338,13 @@
               <button type="button" id="demoAuto" aria-pressed="true">自动轮播</button>
             </div>
             <p class="demo-status" id="demoStatus" role="status">选个效果，或输入一句指令。无需连接硬件。</p>
+            <div class="demo-suggest" id="demoSuggest" hidden></div>
             <div class="demo-terminal">
-              <div class="code-bar mono"><span>示例 CLI</span><button type="button" class="copy mono" data-copy="demo">复制命令</button></div>
+              <div class="code-bar mono">
+                <span>示例 CLI</span>
+                <span class="demo-link" id="demoLink"><i class="dl-dot" aria-hidden="true"></i><span id="demoLinkText">待机 · 模拟回环</span></span>
+                <button type="button" class="copy mono" data-copy="demo">复制命令</button>
+              </div>
               <pre><code id="code-demo">python pc/led_cli.py color 255 0 0</code></pre>
               <details><summary>查看对应的协议消息</summary><pre id="demoPayload">{"cmd":"color","r":255,"g":0,"b":0}</pre></details>
             </div>
