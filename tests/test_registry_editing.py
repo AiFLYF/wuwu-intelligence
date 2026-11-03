@@ -212,7 +212,7 @@ class RegistryEditingTests(unittest.TestCase):
         try:
             process = self.launch('update', 'led', '--file', str(changes), '--if-revision', revision)
             backup = self.folder / '.wuwu-backups' / f'devices.json.{revision}.bak'
-            deadline = time.monotonic() + 10
+            deadline = time.monotonic() + 20   # 高负载机器上子进程启动就要数秒
             while not backup.exists() and process.poll() is None and time.monotonic() < deadline:
                 time.sleep(.01)
             self.assertTrue(backup.exists(), 'Writer did not reach its commit')
@@ -278,13 +278,35 @@ class RegistryEditingTests(unittest.TestCase):
         self.assertIn('E_CONFLICT', failure[1].decode('utf-8'))
         self.assertIn(self.snapshot()['device']['description'], ['0', '1'])
 
+    def test_stale_update_reports_which_patch_fields_already_landed(self):
+        # 「提交后崩溃、不确定有没有生效」的重试：补丁与当前内容一致时，
+        # 冲突提示要直接说明改动可能已生效，而不是让人盲猜。
+        first = self.snapshot()['revision']
+        registry.update_device(self.path, '灯板', {'description': 'landed'}, first)
+        with self.assertRaises(registry.RegistryConflict) as ctx:
+            registry.update_device(self.path, '灯板', {'description': 'landed'}, first)
+        message = str(ctx.exception)
+        self.assertIn('已与当前一致', message)
+        self.assertIn('description', message)
+
+    def test_stale_update_lists_fields_still_differing(self):
+        first = self.snapshot()['revision']
+        registry.update_device(self.path, '灯板', {'description': 'someone else'}, first)
+        with self.assertRaises(registry.RegistryConflict) as ctx:
+            registry.update_device(self.path, '灯板',
+                                   {'description': 'mine', 'manual': 'docs/m.html'}, first)
+        message = str(ctx.exception)
+        self.assertIn('仍需核对', message)
+        self.assertIn('description', message)
+        self.assertIn('manual', message)
+
     def test_lock_timeout_reads_environment_and_rejects_bad_values(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop('WUWU_LOCK_TIMEOUT', None)
             self.assertEqual(registry.lock_timeout(), 5.0)
         with patch.dict(os.environ, {'WUWU_LOCK_TIMEOUT': '30'}):
             self.assertEqual(registry.lock_timeout(), 30.0)
-        for bad in ('abc', '-1', '0'):
+        for bad in ('abc', '-1', '0', 'inf', '-inf', 'nan', '1e999'):
             with patch.dict(os.environ, {'WUWU_LOCK_TIMEOUT': bad}):
                 self.assertEqual(registry.lock_timeout(), 5.0)
 

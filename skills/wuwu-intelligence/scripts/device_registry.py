@@ -95,7 +95,9 @@ def lock_timeout():
     if configured:
         try:
             value = float(configured)
-            if value > 0:
+            # inf 会让等锁变成永久挂起；nan 的比较恒为 False 会落到默认分支，
+            # 这里一并显式拒绝，拼错环境变量时宁可走默认也不要挂死。
+            if math.isfinite(value) and value > 0:
                 return value
         except ValueError:
             pass
@@ -386,6 +388,28 @@ def show_device(path, name):
     return {"registry": str(path), "revision": revision, "device": data["devices"][_device_index(data, name)]}
 
 
+def _conflict_hint(data, name, values, action):
+    """Compare the rejected patch with the current record to guide the merge.
+
+    典型场景是「提交后崩溃、不确定有没有生效」的重试：如果补丁里的字段已经
+    在当前内容里，说明改动其实落库了，重试方看到「已一致」就知道不必重提。
+    """
+    if action != "update" or name is None or not isinstance(values, dict):
+        return ""
+    try:
+        current = data["devices"][_device_index(data, name)]
+    except RegistryError:
+        return ""
+    same = sorted(key for key in values if key in current and values[key] == current[key])
+    differing = sorted(key for key in values if key not in current or values[key] != current[key])
+    parts = []
+    if same:
+        parts.append("补丁中已与当前一致（改动可能已生效）：" + "、".join(same))
+    if differing:
+        parts.append("仍需核对的字段：" + "、".join(differing))
+    return "；" + "；".join(parts) if parts else ""
+
+
 def _edit_registry(path, action, values, name=None, revision=None, dry_run=False):
     path = Path(path).expanduser().resolve()
     if not isinstance(values, dict) or "devices" in values or "_template" in values:
@@ -403,7 +427,8 @@ def _edit_registry(path, action, values, name=None, revision=None, dry_run=False
         else:
             data, previous_revision, raw = {"version": 1, "devices": []}, None, None
         if revision is not None and revision.lower() != previous_revision:
-            raise RegistryConflict("注册表已被其他会话修改；请重新 show，核对新内容后再提交")
+            raise RegistryConflict("注册表已被其他会话修改" + _conflict_hint(data, name, values, action)
+                                   + "；请重新 show 核对后再提交")
         candidate = copy.deepcopy(data)
         if action == "register":
             candidate["devices"].append(copy.deepcopy(values))
