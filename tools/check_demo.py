@@ -256,10 +256,15 @@ def check_fallbacks(browser, url, output):
         context = browser.new_context(viewport={'width': 1280, 'height': 1000}, reduced_motion='reduce')
         page = context.new_page()
         pending, errors = [], []
+        # Playwright 按处理器参数个数决定传 (route) 还是 (route, request)，
+        # 所以挂起的收集器必须保持单参数；循环变量用工厂函数按值绑进来（B023）。
+        def make_hold_route(bucket):
+            def hold(item):
+                bucket.append(item)
+            return hold
         page.on('pageerror', lambda error, errors=errors: errors.append(str(error)))
         if failure == 'slow-module':
-            page.route('**/assets/vendor/three.module.min.js',
-                       lambda route, pending=pending: pending.append(route))
+            page.route('**/assets/vendor/three.module.min.js', make_hold_route(pending))
         if failure == 'blocked-module':
             page.route('**/assets/vendor/three.module.min.js', lambda route: route.abort())
         if failure == 'blocked-ui':
