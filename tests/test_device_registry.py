@@ -31,7 +31,8 @@ class RegistryTests(unittest.TestCase):
                 'desc': 'Set a color', 'argv': ['{python}', 'echo.py', '{r}'],
                 'args': {'r': {'type': 'integer', 'description': 'red',
                                'minimum': 0, 'maximum': 255, 'default': 128}},
-                'idempotent': True, 'timeout': 2,
+                # 真实子进程用例要给冷启动留余量；超时/不重试语义由 mock 用例单独覆盖。
+                'idempotent': True, 'timeout': 10,
             }}
         }]}
 
@@ -201,7 +202,7 @@ class RegistryTests(unittest.TestCase):
         self.path.write_text(json.dumps(self.data, ensure_ascii=False), encoding='utf-8')
         result = subprocess.run(
             [sys.executable, str(SCRIPT), '--registry', str(self.path), 'run', '灯板', 'color'],
-            capture_output=True, env={**os.environ, 'PYTHONIOENCODING': 'ascii'}, timeout=10)
+            capture_output=True, env={**os.environ, 'PYTHONIOENCODING': 'ascii'}, timeout=40)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.decode('utf-8').strip(), '灯板已响应 ✓')
 
