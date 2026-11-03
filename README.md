@@ -220,6 +220,7 @@ GitHub Pages 可选择 `main` 分支的 `/docs` 目录发布；本地改动需�
 
 ```bash
 python -m pip install -r requirements-dev.txt
+ruff check .
 python tools/validate_skill.py
 python -m unittest discover -s tests -v
 node --test
@@ -237,6 +238,10 @@ python tools/check_demo.py
 
 这些检查不需要硬件，**不能代替固件编译、真实通信和实物验证**。实际跑通的流程与结果见[软件与模拟通信验收报告](docs/verification.md)，项目问题与后续建议见[维护记录](docs/maintenance-review.md)。
 
+### 发布规则
+
+`SKILL.md` 的 `metadata.version`、[marketplace.json](.claude-plugin/marketplace.json) 与本文档顶部徽章三处版本号必须同步；**任何版本号变动都必须伴随同名 git tag（`v<版本号>`）与 GitHub Release**，让安装到旧版的用户可以回滚和对照变更。
+
 ## 目录与参考
 
 ```text
@@ -248,6 +253,7 @@ skills/wuwu-intelligence/
 docs/                       静态 Demo 与维护记录
 tools/                      Skill 校验、全流程验收和浏览器检查
 examples/simulated-led/      可实际连接的本机 TCP 软件设备
+examples/esp32-led-matrix/   ESP32-S3 + WS2812B-64 固件与 CLI 骨架（未实机验证）
 tests/                      核心、前端逻辑和资源完整性回归测试
 .github/workflows/ci.yml     持续检查
 .claude-plugin/marketplace.json  插件市场清单

@@ -1,0 +1,56 @@
+{
+  "name": "esp32_led_matrix",
+  "aliases": ["灯板", "灯珠", "RGB灯", "矩阵"],
+  "description": "ESP32-S3 + WS2812B-64 灯板（骨架示例，未在真实硬件上验证）",
+  "project_path": "/path/to/wuwu-intelligence/examples/esp32-led-matrix",
+  "control": {
+    "cli": "pc/led_cli.py",
+    "transport": "tcp:8888"
+  },
+  "hardware": {
+    "mcu": "ESP32-S3",
+    "signal_pin": "GPIO38",
+    "toolchain": "arduino-cli + esp32:esp32@2.3.4 + FastLED@3.7.8 + ArduinoJson@7.2.0",
+    "power": "灯板独立 5V>=4A，与主控共地"
+  },
+  "commands": {
+    "status": {
+      "desc": "查询灯板状态（颜色/亮度/IP/信号强度）",
+      "argv": ["{python}", "pc/led_cli.py", "status"],
+      "args": {},
+      "read_only": true,
+      "idempotent": true,
+      "timeout": 10
+    },
+    "color": {
+      "desc": "整板设置为指定 RGB 颜色",
+      "argv": ["{python}", "pc/led_cli.py", "color", "{r}", "{g}", "{b}"],
+      "args": {
+        "r": { "type": "integer", "description": "红", "minimum": 0, "maximum": 255 },
+        "g": { "type": "integer", "description": "绿", "minimum": 0, "maximum": 255 },
+        "b": { "type": "integer", "description": "蓝", "minimum": 0, "maximum": 255 }
+      },
+      "read_only": false,
+      "idempotent": true,
+      "timeout": 10
+    },
+    "brightness": {
+      "desc": "设置整板亮度",
+      "argv": ["{python}", "pc/led_cli.py", "brightness", "{value}"],
+      "args": {
+        "value": { "type": "integer", "description": "亮度", "minimum": 0, "maximum": 255 }
+      },
+      "read_only": false,
+      "idempotent": true,
+      "timeout": 10
+    },
+    "off": {
+      "desc": "熄灭整板",
+      "argv": ["{python}", "pc/led_cli.py", "off"],
+      "args": {},
+      "read_only": false,
+      "idempotent": true,
+      "timeout": 10
+    }
+  }
+}
