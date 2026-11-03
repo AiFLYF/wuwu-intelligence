@@ -10,7 +10,7 @@ export function initDemo() {
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const state = { pattern: 0, color: [1, 0, 0], brightness: 200, playing: true, autoplay: true };
   let ledPanel = null, flow = null, flowLoading = false;
-  let ledVisible = true, flowVisible = false;
+  let ledVisible = true, flowVisible = false, lastApplied = null;
   let elapsed = 0, held = 0, last = performance.now(), frameId = 0, dirty = true, lastFallback = 0;
   const buttons = [];
 
@@ -50,7 +50,7 @@ export function initDemo() {
     const label = document.createElement('span');
     label.textContent = '试试：';
     suggest.appendChild(label);
-    ['设成蓝色', '显示爱心', '亮度120'].forEach(text => {
+    ['设成蓝色', '显示爱心', '亮度 80'].forEach(text => {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = text;
@@ -121,10 +121,15 @@ export function initDemo() {
       status.classList.add('is-error');
       replayClass(input, 'shake');
       showSuggestions(true);
+      // 1440×900 实测状态行在视口下方 122px：把反馈滚进视野，不再需要用户自己找
+      requestAnimationFrame(() => status.scrollIntoView({
+        block: 'nearest', behavior: motion.matches ? 'auto' : 'smooth'
+      }));
       return;
     }
     status.classList.remove('is-error');
     showSuggestions(false);
+    lastApplied = result;
     if (manual) {
       state.autoplay = false;
       swapText(status, `${result.message}。仅作用于此页面。`);
@@ -162,6 +167,41 @@ export function initDemo() {
     });
   });
   $('#demoBrightness').addEventListener('input', event => applyCommand(brightnessCommand(Number(event.target.value))));
+  const exportButton = $('#demoExport');
+  if (exportButton) {
+    let exportTimer;
+    exportButton.addEventListener('click', event => {
+      event.preventDefault();
+      if (!lastApplied) return;
+      const snapshot = {
+        simulated: true,
+        note: '浏览器模拟结果，未连接真实硬件；实际设备以注册表为准。',
+        command: lastApplied.command,
+        payload: lastApplied.payload,
+        state: {
+          pattern: PATTERNS[state.pattern].name,
+          brightness: state.brightness,
+          color: state.color,
+        },
+      };
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'wuwu-demo-result.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      clearTimeout(exportTimer);
+      exportButton.textContent = '已导出';
+      exportButton.classList.add('done');
+      exportTimer = setTimeout(() => {
+        exportButton.textContent = '导出';
+        exportButton.classList.remove('done');
+      }, 2000);
+    });
+  }
   $('#demoPause').addEventListener('click', () => { state.playing = !state.playing; syncState(); });
   $('#demoAuto').addEventListener('click', () => { state.autoplay = !state.autoplay; held = 0; syncState(); });
   motion.addEventListener('change', syncState);

@@ -589,8 +589,11 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 }
 .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .btn-solid { background: var(--ink); color: #0a0a0a; border-color: var(--ink); }
-.btn-solid:hover { background: var(--acc); border-color: var(--acc); color: #0a0a0a; transform: translateY(-3px); }
-.btn-ghost:hover { border-color: var(--acc); color: var(--acc); transform: translateY(-3px); }
+/* 只给真正有悬停能力的指针：触屏点按后 :hover 会黏住，预览键会一直停在红色 */
+@media (hover: hover) {
+  .btn-solid:hover { background: var(--acc); border-color: var(--acc); color: #0a0a0a; transform: translateY(-3px); }
+  .btn-ghost:hover { border-color: var(--acc); color: var(--acc); transform: translateY(-3px); }
+}
 /* 按压态：hover 是浮起 -3px，按下收回到 -1px —— 有「按下去」的行程感。
    transition 走 --dur-1 微反馈档，松手回弹仍走 --dur-2。 */
 .btn:active { transform: translateY(-1px); transition-duration: var(--dur-1); }
@@ -916,6 +919,9 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
   border: 1px solid var(--line-2);
   border-radius: 999px;
   padding: 4px 12px;
+  /* 代码栏标题很长时，flex 会把按钮压到一字一行（390px 实测「复制」竖排） */
+  flex: none;
+  white-space: nowrap;
   transition: color var(--dur-1), border-color var(--dur-1), background var(--dur-1);
 }
 .copy:hover { color: var(--ink); border-color: var(--acc); }
@@ -1021,7 +1027,7 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 }
 
 .panel { display: none; }
-.panel.is-on { display: block; animation: panelIn 0.55s var(--ease-out); }
+.panel.is-on { display: block; animation: panelIn var(--dur-3) var(--ease-out); }
 @keyframes panelIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 .panel-notes { list-style: none; padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 9px; border-top: 1px solid var(--line); }
@@ -1210,9 +1216,13 @@ html:not(.js) .tab-bar { display: none; }
 .demo-adjust input { min-width: 0; flex: 1; accent-color: var(--acc); cursor: pointer; }
 .demo-adjust output { min-width: 66px; font: 11px var(--mono); text-align: right; }
 .demo-playback { display: flex; gap: 8px; }
-.demo-playback button:disabled { cursor: default; opacity: .55; }
-.demo-status { min-height: 2.8em; color: var(--mut); font-size: 12px; line-height: 1.5; }
+.demo-playback button:disabled { cursor: default; opacity: .7; }
+/* scroll-margin：出错时 JS 用 scrollIntoView({block:'nearest'}) 把反馈带进视口，
+   留 20px 底边距，避免状态行刚好贴在 900px 视口的最后一行像素上。 */
+.demo-status { min-height: 2.8em; margin-top: 8px; scroll-margin-block: 16px 20px; color: var(--mut); font-size: 12px; line-height: 1.5; }
 .demo-status.is-error { color: #ff918a; }
+.demo-suggest { margin-top: 6px; }
+.demo-actions { display: inline-flex; gap: 6px; }
 
 /* ── demo 反馈组件 ──────────────────────────────────────────────
    模拟收发指示 / 文字切换 / 错误抖动与建议。动画时长全部走令牌，
@@ -1223,7 +1233,7 @@ html:not(.js) .tab-bar { display: none; }
 .demo-link { display: inline-flex; align-items: center; gap: 7px; color: var(--mut-2); transition: color var(--dur-1); }
 .dl-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .demo-link.ping { color: var(--acc); }
-.demo-link.ping .dl-dot { animation: dlPing 0.5s var(--ease-out); }
+.demo-link.ping .dl-dot { animation: dlPing var(--dur-3) var(--ease-out); }
 @keyframes dlPing {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acc) 65%, transparent); }
   100% { box-shadow: 0 0 0 9px transparent; }
@@ -1239,7 +1249,7 @@ html:not(.js) .tab-bar { display: none; }
   45% { transform: translateX(4px); }
   70% { transform: translateX(-2px); }
 }
-.demo-input-row input.shake { animation: shakeX 0.38s var(--ease-out); }
+.demo-input-row input.shake { animation: shakeX var(--dur-2) var(--ease-out); }
 
 /* 错误后的可点修正建议 */
 .demo-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--mut); }
@@ -1261,8 +1271,20 @@ html:not(.js) .tab-bar { display: none; }
 .flow-fallback b { font: 12px var(--mono); color: var(--acc); }
 .flow-fallback span { color: var(--mut); font-size: 12px; }
 .motion-paused *, .page-hidden * { animation-play-state: paused !important; }
+/* 暂停「动画」只该停环境动效（grain/marquee/led-mini 等）。
+   以下四个是功能反馈，若一起冻在首帧会直接看不见：
+   tab 面板（panelIn→opacity:0）、状态行/效果名（swapIn→opacity:0）、
+   输入抖动、回环小点。390 实测暂停后切 tab 得到整块空白。 */
+.motion-paused .panel,
+.motion-paused .demo-status,
+.motion-paused .led-pat,
+.motion-paused .demo-link,
+.motion-paused #demoCommand { animation-play-state: running !important; }
 
 @media (max-width: 720px) {
+  /* 390px 实测：verify 代码块溢出 51px、安装命令与注册表 JSON 也被裁在右边缘。
+     小屏改换行，宁可折行也不隐藏内容；复制按钮仍给出原始单行文本。 */
+  .code, .demo-terminal pre { white-space: pre-wrap; overflow-wrap: anywhere; }
   .flow-fallback { flex-direction: column; align-items: flex-start; padding-left: 15%; }
   .demo-topline { font-size: 9px; }
   .demo-input-row .btn { padding-inline: 12px; }

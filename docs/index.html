@@ -320,6 +320,8 @@
                 <input id="demoCommand" name="command" type="text" value="灯板设成红色" maxlength="80" autocomplete="off" aria-describedby="demoHint demoStatus">
                 <button type="submit" class="btn btn-solid">预览 →</button>
               </div>
+              <p class="demo-status" id="demoStatus" role="status">选个效果，或输入一句指令。无需连接硬件。</p>
+              <div class="demo-suggest" id="demoSuggest" hidden></div>
             </form>
             <div class="demo-examples" role="group" aria-label="示例指令">
               <button type="button" data-demo-command="设成蓝色">设成蓝色</button>
@@ -337,13 +339,14 @@
               <button type="button" id="demoPause" aria-pressed="false">暂停动画</button>
               <button type="button" id="demoAuto" aria-pressed="true">自动轮播</button>
             </div>
-            <p class="demo-status" id="demoStatus" role="status">选个效果，或输入一句指令。无需连接硬件。</p>
-            <div class="demo-suggest" id="demoSuggest" hidden></div>
             <div class="demo-terminal">
               <div class="code-bar mono">
                 <span>示例 CLI</span>
                 <span class="demo-link" id="demoLink"><i class="dl-dot" aria-hidden="true"></i><span id="demoLinkText">待机 · 模拟回环</span></span>
-                <button type="button" class="copy mono" data-copy="demo">复制命令</button>
+                <span class="demo-actions">
+                  <button type="button" class="copy mono" data-copy="demo">复制命令</button>
+                  <button type="button" class="copy mono" id="demoExport" title="下载当前模拟结果的 JSON" aria-label="导出当前模拟结果 JSON">导出</button>
+                </span>
               </div>
               <pre><code id="code-demo">python pc/led_cli.py color 255 0 0</code></pre>
               <details><summary>查看对应的协议消息</summary><pre id="demoPayload">{"cmd":"color","r":255,"g":0,"b":0}</pre></details>

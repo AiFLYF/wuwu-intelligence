@@ -6,6 +6,7 @@ Screenshots are written to .workbuddy/qa/ by default.
 """
 
 import argparse
+import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -54,7 +55,7 @@ def check_desktop(browser, url, output):
     expect(page.locator('#code-demo')).to_have_text('python pc/led_cli.py color 0 0 255')
     expect(page.locator('#demoAuto')).to_have_attribute('aria-pressed', 'false')
     page.locator('#demoCommand').fill('开门')
-    page.locator('#demoForm button').click()
+    page.locator('#demoForm button[type="submit"]').click()
     expect(page.locator('#demoCommand')).to_have_attribute('aria-invalid', 'true')
     expect(page.locator('#code-demo')).to_have_text('python pc/led_cli.py color 0 0 255')
     # 非法指令的完整反馈链：输入框抖动、给出可点的修正建议
@@ -72,6 +73,14 @@ def check_desktop(browser, url, output):
     page.keyboard.press('Escape')
     assert page.evaluate("document.activeElement.id") != 'demoCommand'
     page.get_by_role('button', name='显示爱心', exact=True).click()
+    # 结果一键导出：文件名固定，内容必须是当前命令 + 模拟标注，不能是别的快照
+    with page.expect_download() as download_info:
+        page.locator('#demoExport').click()
+    download = download_info.value
+    assert download.suggested_filename == 'wuwu-demo-result.json'
+    snapshot = json.loads(Path(download.path()).read_text(encoding='utf-8'))
+    assert snapshot['simulated'] is True, snapshot
+    assert snapshot['command'] == 'python pc/led_cli.py heart', snapshot
     page.locator('#demoPause').click()
     expect(page.locator('#demoPause')).to_have_text('继续动画')
     page.locator('#demoBrightness').focus()
@@ -316,7 +325,7 @@ def check_reduced_motion(browser, url):
     assert page.evaluate('window.testFrameCount') - before <= 2, 'Reduced motion must not render continuously'
     # 减少动态效果时，非法指令只给状态文字，不挂抖动动画 class
     page.locator('#demoCommand').fill('开门')
-    page.locator('#demoForm button').click()
+    page.locator('#demoForm button[type="submit"]').click()
     expect(page.locator('#demoCommand')).to_have_attribute('aria-invalid', 'true')
     assert not page.evaluate("document.getElementById('demoCommand').classList.contains('shake')"), \
         'Reduced motion must not play the shake animation'
