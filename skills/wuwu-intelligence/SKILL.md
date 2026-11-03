@@ -90,7 +90,7 @@ python scripts/device_registry.py run 灯板 color --args '{"r":255,"g":0,"b":0}
    等待接线期间可以完成代码、模拟测试和文档准备，不必暂停独立工作。
 4. 根据 [references/protocol-template.md](references/protocol-template.md) 编写固件与 CLI；按 D 编译烧录。工具链和开发目录沿用项目实际结构。
 5. 先做只读验证与参数校验，再测试用户目标范围内的动作。涉及运动、加热或供电切换时确认工作条件；不要为了遍历“所有命令”触发无关动作。
-6. 将单台设备的真实档案写入描述文件，用 `register --file` 登记。已有设备先 `show` 再用 `update` 提交需要改动的字段，命令条目完整替换。遇到 `E_CONFLICT` 比较新旧字段再处理，不盲目刷新版本后覆盖。
+6. 将单台设备的真实档案写入描述文件，用 `register --file` 登记。已有设备先 `show` 再用 `update` 提交需要改动的字段，命令条目完整替换。遇到 `E_CONFLICT` 先看消息里的字段级提示（哪些已一致、哪些需核对），不盲目刷新版本后覆盖。
 7. 根据 [references/delivery-doc-guide.md](references/delivery-doc-guide.md) 与 [references/manual-template.html](references/manual-template.html) 生成项目说明书，记录 `manual` 并打开。说明以后可以怎样说、哪些效果已实测。
 
 ## C：扩展已有设备

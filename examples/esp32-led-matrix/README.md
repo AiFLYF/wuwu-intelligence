@@ -1,12 +1,14 @@
 # ESP32-S3 + WS2812B-64 灯板示例（骨架）
 
-> **验证状态：未在真实硬件上验证。**
+> ## ⛔ 验证状态：未在真实硬件上验证
+>
 > 本目录是按 [protocol-template](../../skills/wuwu-intelligence/references/protocol-template.md)
 > 与 [troubleshooting](../../skills/wuwu-intelligence/references/troubleshooting.md) 整理的
-> 最小骨架，目的是给「接入新设备」流程一个可照抄的起点。固件与 CLI 尚未在任何实体
-> 灯板上编译、烧录或运行过；第一次使用前请按
+> 最小骨架。**固件与 CLI 尚未在任何实体灯板上烧录、运行过**。已验证的部分：
+> CLI 错误处理与注册表登记（软件级）、固件编译（2026-11-03 本机 esp32 core 3.3.11 +
+> FastLED 3.10.5 + ArduinoJson 7.4.3 编译通过，比下方锁定版本新）。第一次使用前请按
 > [new-device-playbook](../../skills/wuwu-intelligence/references/new-device-playbook.md)
-> 走完接线核对与逐步实测，再把验证结论回填到这里。
+> 走完接线核对与逐步实测，再运行 `python self_check.py` 核对工具链，把实测结论回填到这里。
 
 ## 材料
 
@@ -92,4 +94,6 @@ python skills/wuwu-intelligence/scripts/device_registry.py register --file <你�
 firmware/led_matrix/led_matrix.ino   最小固件（WiFi + TCP + 单帧非阻塞 loop）
 pc/led_cli.py                        标准库 TCP CLI
 devices.example.json                 注册表登记描述（单台设备对象，不是整份注册表）
+self_check.py                        一步式环境自检：arduino-cli / 核心与库版本 /
+                                     凭据占位符，加 --compile 可顺带编译固件
 ```

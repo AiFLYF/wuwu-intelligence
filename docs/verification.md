@@ -26,7 +26,7 @@
 
 完整模拟流程记录了 **28 次实际命令调用与 10 次服务端请求**，另包含说明书生成。响应均明确标注 `simulation: true`，没有向物理设备发送控制命令。
 
-最新核心检查：58 项 Python 测试通过；此前 6 项 Node 测试、6 组 Chromium 检查通过；Skill 结构、Claude 插件清单和 Git 差异检查通过。环境为 Windows、Python 3.12.10、Node.js 24.14.0、Playwright 1.60.0。CI 已加入全流程验收，但本地运行不等于远程 CI 已执行。
+最新核心检查：61 项 Python 测试通过；6 项 Node 测试、10 组 Chromium 检查通过；Skill 结构、Claude 插件清单、Git 差异检查与 ruff 静态检查通过。环境为 Windows、Python 3.12.10、Node.js 24.14.0、Playwright 1.60.0。CI 已加入全流程验收，但本地运行不等于远程 CI 已执行。
 
 ## 本轮实际发现并修复的问题
 
