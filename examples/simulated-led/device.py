@@ -2,6 +2,7 @@
 """A loopback-only, stateful LED simulator. It never touches physical hardware."""
 
 import argparse
+import contextlib
 import json
 from pathlib import Path
 import socketserver
@@ -109,10 +110,8 @@ def main():
             options.ready_file.parent.mkdir(parents=True, exist_ok=True)
             options.ready_file.write_text(json.dumps(ready), encoding="utf-8")
         print(json.dumps(ready), flush=True)
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             server.serve_forever()
-        except KeyboardInterrupt:
-            pass
 
 
 if __name__ == "__main__":

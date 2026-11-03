@@ -117,7 +117,8 @@ class RegistryEditingTests(unittest.TestCase):
 
     def test_update_merges_selected_maps_and_preserves_other_fields(self):
         revision = self.snapshot()['revision']
-        result = registry.update_device(self.path, '灯板', {'hardware': {'board': 'new'}, 'description': 'updated'}, revision)
+        result = registry.update_device(self.path, '灯板',
+                                        {'hardware': {'board': 'new'}, 'description': 'updated'}, revision)
         after = self.snapshot()['device']
         self.assertEqual(after['hardware'], {'board': 'new', 'custom': 'preserve'})
         self.assertEqual(after['commands'], self.device['commands'])
@@ -168,9 +169,9 @@ class RegistryEditingTests(unittest.TestCase):
 
     def test_failed_atomic_replace_keeps_original_and_cleans_temporary_files(self):
         original = self.path.read_bytes()
-        with patch.object(registry.os, 'replace', side_effect=OSError('injected write failure')):
-            with self.assertRaises(OSError):
-                registry.update_device(self.path, 'led', {'description': 'new'}, self.snapshot()['revision'])
+        with patch.object(registry.os, 'replace', side_effect=OSError('injected write failure')), \
+             self.assertRaises(OSError):
+            registry.update_device(self.path, 'led', {'description': 'new'}, self.snapshot()['revision'])
         self.assertEqual(self.path.read_bytes(), original)
         self.assertEqual(list(self.folder.glob('*.tmp')), [])
         backup = next((self.folder / '.wuwu-backups').glob('*.bak'))
@@ -233,9 +234,9 @@ class RegistryEditingTests(unittest.TestCase):
         def edit_during_publish(*_args):
             self.path.write_bytes(changed_bytes)
             raise busy
-        with patch.object(registry.os, 'replace', side_effect=edit_during_publish) as replace:
-            with self.assertRaises(registry.RegistryConflict):
-                registry.update_device(self.path, 'led', {'description': 'stale'}, self.snapshot()['revision'])
+        with patch.object(registry.os, 'replace', side_effect=edit_during_publish) as replace, \
+             self.assertRaises(registry.RegistryConflict):
+            registry.update_device(self.path, 'led', {'description': 'stale'}, self.snapshot()['revision'])
         self.assertEqual(replace.call_count, 1)
         self.assertEqual(self.path.read_bytes(), changed_bytes)
 
@@ -246,9 +247,8 @@ class RegistryEditingTests(unittest.TestCase):
         ticks = itertools.count(0, .5)
         with patch.object(registry.os, 'replace', side_effect=busy), \
              patch.object(registry.time, 'monotonic', side_effect=lambda: next(ticks)), \
-             patch.object(registry.time, 'sleep'):
-            with self.assertRaises(PermissionError):
-                registry.update_device(self.path, 'led', {'description': 'cannot write'}, self.snapshot()['revision'])
+             patch.object(registry.time, 'sleep'), self.assertRaises(PermissionError):
+            registry.update_device(self.path, 'led', {'description': 'cannot write'}, self.snapshot()['revision'])
         self.assertEqual(self.path.read_bytes(), original)
         self.assertEqual(list(self.folder.glob('*.tmp')), [])
 
@@ -306,9 +306,8 @@ with module.registry_lock(Path(sys.argv[2])):
         while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
             time.sleep(.02)
         self.assertTrue(ready.exists(), 'Lock holder failed to start')
-        with self.assertRaises(registry.RegistryConflict):
-            with registry.registry_lock(self.path, timeout=.05):
-                self.fail('A second writer acquired the lock')
+        with self.assertRaises(registry.RegistryConflict), registry.registry_lock(self.path, timeout=.05):
+            self.fail('A second writer acquired the lock')
         self.stop(process)
         process.communicate(timeout=5)
         self.assertEqual(registry.register_device(self.path, self.definition('after-crash'))['status'], 'registered')

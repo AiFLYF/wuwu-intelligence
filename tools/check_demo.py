@@ -122,7 +122,8 @@ def check_mobile(browser, url, output):
         expect(page.locator('#menu')).to_have_attribute('aria-hidden', 'false')
         for _ in range(9):
             page.keyboard.press('Tab')
-            assert page.evaluate("document.activeElement.closest('#menu') !== null || document.activeElement.id === 'burger'")
+            assert page.evaluate("document.activeElement.closest('#menu') !== null"
+                                 " || document.activeElement.id === 'burger'")
         page.keyboard.press('Escape')
         expect(page.locator('#burger')).to_be_focused()
         assert not page.locator('#content').evaluate('(element) => element.inert')
@@ -243,7 +244,9 @@ def check_static(browser, url, output):
     expect(page.locator('#ledFallback')).to_be_visible()
     for panel in ('manual', 'agent', 'verify'):
         expect(page.locator(f'#panel-{panel}')).to_be_visible()
-    assert page.locator('[data-reveal]').evaluate_all("elements => elements.every(el => getComputedStyle(el).opacity === '1')")
+    revealed = page.locator('[data-reveal]').evaluate_all(
+        "elements => elements.every(el => getComputedStyle(el).opacity === '1')")
+    assert revealed
     page.screenshot(path=str(output / 'no-javascript.png'))
     context.close()
 
@@ -253,9 +256,10 @@ def check_fallbacks(browser, url, output):
         context = browser.new_context(viewport={'width': 1280, 'height': 1000}, reduced_motion='reduce')
         page = context.new_page()
         pending, errors = [], []
-        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.on('pageerror', lambda error, errors=errors: errors.append(str(error)))
         if failure == 'slow-module':
-            page.route('**/assets/vendor/three.module.min.js', lambda route: pending.append(route))
+            page.route('**/assets/vendor/three.module.min.js',
+                       lambda route, pending=pending: pending.append(route))
         if failure == 'blocked-module':
             page.route('**/assets/vendor/three.module.min.js', lambda route: route.abort())
         if failure == 'blocked-ui':
@@ -280,7 +284,8 @@ def check_fallbacks(browser, url, output):
                 return `rgb(0 0 ${Math.round(255 * dflt / 255)})`;
             }""")
             page.wait_for_function(
-                "expected => document.querySelector('#ledFallback i').style.getPropertyValue('--led-color') === expected",
+                "expected => document.querySelector('#ledFallback i')"
+                ".style.getPropertyValue('--led-color') === expected",
                 arg=blue)
         if failure == 'blocked-module':
             page.locator('.hero-visual').screenshot(path=str(output / 'fallback.png'))
@@ -413,7 +418,8 @@ def check_contrast(browser, url):
     page.emulate_media(reduced_motion='reduce')
     for width in (320, 390):
         page.set_viewport_size({'width': width, 'height': 844})
-        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Populated manual overflows on narrow screens'
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), \
+            'Populated manual overflows on narrow screens'
     page.evaluate('scrollTo(0, 0)')
     page.screenshot(path=str(output / 'generated-manual-mobile.png'))
     assert not errors, errors

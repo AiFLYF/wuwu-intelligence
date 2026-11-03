@@ -1,0 +1,16 @@
+# 最小静态检查集：先守住语法/未用名/行长和两类低风险告警，不按全量规则集压旧代码。
+# 行宽 120：本仓库的中文注释与表驱动长行按字符计天然偏长，88 只会逼出无意义折行。
+line-length = 120
+
+[lint]
+select = [
+  "E",      # pycodestyle 错误
+  "F",      # pyflakes：未用导入、未定义名
+  "W",      # pycodestyle 警告
+  "B",      # bugbear：循环变量闭包、可变默认值等真实坑
+  "SIM105", # contextlib.suppress
+  "SIM117", # 嵌套 with 合并
+]
+
+[lint.per-file-ignores]
+"docs/assets/vendor/*" = ["E", "F", "W", "B", "SIM105", "SIM117"]

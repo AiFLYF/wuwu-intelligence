@@ -18,7 +18,9 @@ class PageReferences(HTMLParser):
         self.nesting_errors = []
 
     def handle_starttag(self, tag, attrs):
-        if tag not in {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'}:
+        void = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+                'link', 'meta', 'param', 'source', 'track', 'wbr'}
+        if tag not in void:
             self.stack.append(tag)
         attrs = dict(attrs)
         if 'id' in attrs:

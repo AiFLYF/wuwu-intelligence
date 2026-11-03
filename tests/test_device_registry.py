@@ -45,7 +45,8 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(self.path.read_bytes(), b'private user data\r\n')
 
     def test_default_data_location_is_outside_the_skill_installation(self):
-        with patch.dict(os.environ, {}, clear=True), patch.object(registry.Path, 'home', return_value=Path(self.temp.name)):
+        with patch.dict(os.environ, {}, clear=True), \
+             patch.object(registry.Path, 'home', return_value=Path(self.temp.name)):
             self.assertEqual(registry.default_registry(), Path(self.temp.name) / '.wuwu-intelligence/devices.json')
 
     def test_registry_selection_respects_explicit_path_and_environment(self):
@@ -59,7 +60,9 @@ class RegistryTests(unittest.TestCase):
         legacy = Path(self.temp.name) / 'old.json'
         legacy.write_text(json.dumps(self.data), encoding='utf-8')
         destination = Path(self.temp.name) / 'new.json'
-        with patch.dict(os.environ, {}, clear=True), patch.object(registry, 'LEGACY_REGISTRY', legacy), patch.object(registry, 'default_registry', return_value=destination):
+        with patch.dict(os.environ, {}, clear=True), \
+             patch.object(registry, 'LEGACY_REGISTRY', legacy), \
+             patch.object(registry, 'default_registry', return_value=destination):
             self.assertEqual(registry.select_registry(), (legacy, True))
             with self.assertRaisesRegex(registry.RegistryError, 'migrate'):
                 registry.select_registry(action='init')
@@ -136,7 +139,9 @@ class RegistryTests(unittest.TestCase):
 
     def test_invalid_argument_schema_is_reported(self):
         command = self.data['devices'][0]['commands']['color']
-        for change in ({'type': 'array'}, {'minimum': '0'}, {'maximum': -1}, {'default': 300}, {'enum': []}, {'max': 100}):
+        changes = ({'type': 'array'}, {'minimum': '0'}, {'maximum': -1},
+                   {'default': 300}, {'enum': []}, {'max': 100})
+        for change in changes:
             bad = copy.deepcopy(self.data)
             bad['devices'][0]['commands']['color']['args']['r'].update(change)
             with self.subTest(change=change), self.assertRaises(registry.RegistryError):
