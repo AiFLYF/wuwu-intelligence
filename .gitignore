@@ -38,3 +38,7 @@ node_modules/
 
 # 打包产物：project-demo-page 技能包（外部素材，不属于本仓库）
 project-demo-page.zip
+
+# IDE 浏览器预览与分享产物
+.screenshots/
+.trae-html-share-packages/
