@@ -190,6 +190,14 @@ export function initDemo() {
           brightness: state.brightness,
           color: state.color,
         },
+        // 运行环境快照：同一份命令在不同浏览器/视口/渲染后端下表现可能不同，
+        // 复现问题时就靠这几项区分「代码问题」还是「环境差异」。
+        environment: {
+          userAgent: navigator.userAgent,
+          viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+          webgl: ledPanel ? (canvas.getContext('webgl2') ? 'webgl2' : 'webgl') : '2d',
+          reducedMotion: motion.matches,
+        },
       };
       const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);

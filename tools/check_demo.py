@@ -87,6 +87,12 @@ def check_desktop(browser, url, output):
     assert datetime.fromisoformat(snapshot['timestamp'].replace('Z', '+00:00')).year >= 2024, snapshot
     assert isinstance(snapshot['steps'], list) and len(snapshot['steps']) == 3, snapshot
     assert 'python pc/led_cli.py heart' in snapshot['steps'][0], snapshot
+    # 环境快照：复现时必须能看出 UA / 视口 / 渲染后端
+    env = snapshot['environment']
+    assert env['userAgent'].startswith('Mozilla/'), snapshot
+    assert env['viewport']['width'] > 0 and env['viewport']['height'] > 0, snapshot
+    assert env['webgl'] in {'webgl2', 'webgl', '2d'}, snapshot
+    assert isinstance(env['reducedMotion'], bool), snapshot
     page.locator('#demoPause').click()
     expect(page.locator('#demoPause')).to_have_text('继续动画')
     page.locator('#demoBrightness').focus()
