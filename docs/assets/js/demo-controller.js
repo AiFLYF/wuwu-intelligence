@@ -175,8 +175,15 @@ export function initDemo() {
       if (!lastApplied) return;
       const snapshot = {
         simulated: true,
+        timestamp: new Date().toISOString(),
         note: '浏览器模拟结果，未连接真实硬件；实际设备以注册表为准。',
         command: lastApplied.command,
+        // 最小复现步骤：先能在本页复现，再说明真机执行前的前置条件
+        steps: [
+          `在本页指令框输入示例，或直接点效果键，得到命令：${lastApplied.command}`,
+          `预期反馈：${lastApplied.message}（仅为浏览器模拟）`,
+          '真机执行前：确认设备已登记且串口可用，命令以注册表支持项为准',
+        ],
         payload: lastApplied.payload,
         state: {
           pattern: PATTERNS[state.pattern].name,
@@ -237,17 +244,30 @@ export function initDemo() {
   }
 
   async function loadLed() {
+    const label = $('#demoRenderer');
+    // 3D 初始化慢时（弱网/冷启动），先说明「当前看到的是 2D，3D 还在路上」，
+    // 而不是让用户以为页面就只有 2D。模块失败/无 WebGL 时恢复原标注；
+    // 挂死超过 8s 也收回加载标注，避免无限「加载中」。
+    label.textContent = '3D 加载中 · 2D 预览';
+    const giveUp = setTimeout(() => {
+      if (!ledPanel) label.textContent = '2D 预览 · 浏览器模拟';
+    }, 8000);
     try {
       const { initLedPanel } = await import('./led-panel.js');
       ledPanel = initLedPanel(canvas);
       if (ledPanel) {
         stage.classList.add('has-webgl');
-        $('#demoRenderer').textContent = '3D 预览 · 浏览器模拟';
+        label.textContent = '3D 预览 · 浏览器模拟';
         ledPanel.setActive(ledVisible);
         syncState();
+      } else {
+        label.textContent = '2D 预览 · 浏览器模拟';
       }
     } catch {
       // The fully working DOM preview remains available if a module cannot load.
+      label.textContent = '2D 预览 · 浏览器模拟';
+    } finally {
+      clearTimeout(giveUp);
     }
   }
 

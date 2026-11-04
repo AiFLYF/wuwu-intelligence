@@ -6,6 +6,7 @@ Screenshots are written to .workbuddy/qa/ by default.
 """
 
 import argparse
+from datetime import datetime
 import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -81,6 +82,11 @@ def check_desktop(browser, url, output):
     snapshot = json.loads(Path(download.path()).read_text(encoding='utf-8'))
     assert snapshot['simulated'] is True, snapshot
     assert snapshot['command'] == 'python pc/led_cli.py heart', snapshot
+    # 导出件必须能独立复现：ISO 时间戳 + 三步最小步骤，且步骤带上当前命令
+    assert snapshot['timestamp'].endswith('Z'), snapshot
+    assert datetime.fromisoformat(snapshot['timestamp'].replace('Z', '+00:00')).year >= 2024, snapshot
+    assert isinstance(snapshot['steps'], list) and len(snapshot['steps']) == 3, snapshot
+    assert 'python pc/led_cli.py heart' in snapshot['steps'][0], snapshot
     page.locator('#demoPause').click()
     expect(page.locator('#demoPause')).to_have_text('继续动画')
     page.locator('#demoBrightness').focus()
@@ -291,7 +297,10 @@ def check_fallbacks(browser, url, output):
             expect(page.locator('#ledDots button')).to_have_count(7)
             page.get_by_role('button', name='设成蓝色', exact=True).click()
             expect(page.locator('#code-demo')).to_have_text('python pc/led_cli.py color 0 0 255')
-            expect(page.locator('#demoRenderer')).to_have_text('2D 预览 · 浏览器模拟')
+            # slow-module 是「3D 还在路上」，标注应保持加载中；其余三种失败回退到 2D
+            expected_renderer = ('3D 加载中 · 2D 预览' if failure == 'slow-module'
+                                 else '2D 预览 · 浏览器模拟')
+            expect(page.locator('#demoRenderer')).to_have_text(expected_renderer)
             # 蓝色满量 × 页面默认亮度（200）—— 别写死成某个数字，改默认值会漏
             blue = page.evaluate("""() => {
                 const dflt = Number(document.getElementById('demoBrightness').defaultValue);
@@ -385,6 +394,14 @@ def check_contrast(browser, url):
             const value = ratio(fg, bgOf(el));
             if (value < 4.5) bad.push(`${selector}: ${value.toFixed(2)}:1`);
         }
+        // 禁用按钮按「文字色 × 透明度」合成后再算；只改 opacity 也会被这里抓到
+        const pause = document.querySelector('#demoPause');
+        const pauseStyle = getComputedStyle(pause);
+        const alpha = parseFloat(pauseStyle.opacity);
+        const pauseBg = bgOf(pause);
+        const pauseFg = lum(parse(pauseStyle.color)) * alpha + pauseBg * (1 - alpha);
+        const pauseRatio = ratio(pauseFg, pauseBg);
+        if (pauseRatio < 4.5) bad.push(`#demoPause disabled: ${pauseRatio.toFixed(2)}:1`);
         // 五个章节强调色会轮流成为焦点框颜色（:focus-visible outline），按非文本 3:1 查
         document.querySelectorAll('[data-acc]').forEach(section => {
             const hex = section.dataset.acc;

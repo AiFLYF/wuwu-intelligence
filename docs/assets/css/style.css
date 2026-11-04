@@ -531,6 +531,15 @@ html.js body.is-loaded [data-load] { opacity: 1; transform: none; }
 @media (min-width: 1081px) {
   .hero-copy { transform: translateY(-237px); }
 }
+/* 1440×900 实测：空态状态行 bottom 924，被视口裁掉 24px。这里只在「双栏 + 矮屏」
+   收紧留白：顶部 117→90、wrap 27→18、控件行距 10→8，共上移约 46px。
+   不动灯板尺寸与文案结构，高度 >940px 的屏幕完全不受影响。 */
+@media (min-width: 1081px) and (max-height: 940px) {
+  .hero { padding-block-start: clamp(84px, 10vh, 124px); }
+  .hero-wrap { padding-block: 18px; }
+  /* 必须带上 html.js 前缀：基础规则就是 html.js .demo-controls，优先级更高 */
+  html.js .demo-controls { gap: 8px; }
+}
 
 .eyebrow {
   display: inline-flex;
@@ -571,6 +580,12 @@ html.js body.is-loaded .ht-line { transform: translateY(0); }
 .hero-sub strong { color: var(--ink); font-weight: 600; }
 
 .hero-cta { margin-top: clamp(24px, 3.6vh, 40px); display: flex; flex-wrap: wrap; gap: 12px; }
+/* 390 实测：三个按钮 122+89+128 + 24 间距 = 363，超出 350 可用宽 → README 掉到第二行。
+   收窄内边距与间距后 335，一行放得下；按钮高度仍是 47px，触控不受影响。 */
+@media (max-width: 480px) {
+  .hero-cta { gap: 10px; }
+  .hero-cta .btn { padding-inline: 20px; }
+}
 
 .btn {
   display: inline-flex;
@@ -1216,7 +1231,9 @@ html:not(.js) .tab-bar { display: none; }
 .demo-adjust input { min-width: 0; flex: 1; accent-color: var(--acc); cursor: pointer; }
 .demo-adjust output { min-width: 66px; font: 11px var(--mono); text-align: right; }
 .demo-playback { display: flex; gap: 8px; }
-.demo-playback button:disabled { cursor: default; opacity: .7; }
+/* 禁用态不再压整键透明度：.7 会把 --mut 合成到约 3.4:1，低于 AA。
+   改用更暗的文字色 + 更淡的边框表达「不可用」，实测 4.8:1。 */
+.demo-playback button:disabled { cursor: default; opacity: 1; color: var(--mut-2); border-color: var(--line); }
 /* scroll-margin：出错时 JS 用 scrollIntoView({block:'nearest'}) 把反馈带进视口，
    留 20px 底边距，避免状态行刚好贴在 900px 视口的最后一行像素上。 */
 .demo-status { min-height: 2.8em; margin-top: 8px; scroll-margin-block: 16px 20px; color: var(--mut); font-size: 12px; line-height: 1.5; }
